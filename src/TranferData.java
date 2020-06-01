@@ -112,36 +112,5 @@ public class TranferData {
 			pre.execute();
 		}
 	}
-
-
-	public void copy(String database1, String database2) throws ClassNotFoundException, SQLException {
-		
-//		Connection connectionDB2 = DBConnection.getConnection(jdbcURL_2, userName_2, password_2);
-//		System.out.println("c2 ok");
-//
-//		ResultSet rs;
-//		Statement stmt = connectionDB1.createStatement();
-//		rs = stmt.executeQuery("SELECT * FROM information");
-//		ResultSetMetaData md = (ResultSetMetaData) rs.getMetaData();
-//		int counter = md.getColumnCount();
-//		String colName[] = new String[counter];
-//		System.out.println("The column names are as follows:");
-//		for (int loop = 1; loop <= counter; loop++) {
-//			colName[loop - 1] = md.getColumnLabel(loop);
-////			sqlCreateTable += colName[loop - 1] + " CHAR(50),";
-//		}
-
-		
-//		sqlCreateTable += ")";
-
-//		System.out.println(sqlCreateTable);
-//		PreparedStatement p = connectionDB2.prepareStatement(sqlCreateTable);
-//		p.execute();
-
-//		COPY 
-//		String insert = "INSERT INTO datacopy.information SELECT * FROM datawarehouse.information";
-//		System.out.println(insert);
-//		PreparedStatement pc = connectionDB2.prepareStatement(insert);
-//		pc.execute();
-	}
+	
 }
