@@ -17,79 +17,100 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 public class TranferData {
-	String jdbcURL_1 = "jdbc:mysql://localhost/datawarehouse?useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC";
+	String jdbcURL_1 = "jdbc:mysql://localhost/controldb?useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC";
 	String userName_1 = "root";
 	String password_1 = "";
 
-
 	public static void main(String[] args) throws ClassNotFoundException, SQLException, IOException {
 		TranferData ex = new TranferData();
-//		ex.loadVPro("D:\\00_HK2_3\\DataWarehouse\\Datasource_23052020.xlsx");
-		ex.copyVpro();
+//		ex.load("D:\\00_HK2_3\\DataWarehouse\\Datasource_23052020.xlsx");
+//		ex.copyVpro();
+		ex.loadV2();
 	}
 
-	public void loadVPro(String excelFile) throws ClassNotFoundException, SQLException, IOException {
-		Connection connect = DBConnection.getConnection(jdbcURL_1, userName_1, password_1);
+	public void loadV2() throws ClassNotFoundException, SQLException, IOException {
+		Connection connectDB = DBConnection.getConnection(jdbcURL_1, userName_1, password_1);
+		System.out.println("c1 ok");
+		Statement st = connectDB.createStatement();
+		ResultSet rs = st.executeQuery("SELECT * FROM config");
+		rs.next();
+		String src = rs.getString("source");
+		System.out.println(src);
+		String des = rs.getString("destination");
+		System.out.println(des);
+		String user_des = rs.getString("user_des");
+		System.out.println(user_des);
+		String pw_des = rs.getString("pw_des");
+		System.out.println(pw_des);
+		String tableName = src.substring(src.lastIndexOf("\\") + 1, src.lastIndexOf("."));
+		System.out.println(tableName);
+		if (src.endsWith("xlsx")) {
+			loadFromXSXL(src, tableName, des, user_des, pw_des);
+		} else {
+			System.out.println("no method");
+		}
+
+	}
+
+	public void loadFromXSXL(String excelFile, String tableName, String sourcDb, String user_sr, String password)
+			throws ClassNotFoundException, SQLException, IOException {
+		Connection connect = DBConnection.getConnection(sourcDb, user_sr, password);
 		System.out.println("Connect DB Successfully :)");
 		Workbook excel = new XSSFWorkbook(excelFile);
 		Sheet sheet = excel.getSheetAt(0);
 		Row row;
 		Cell cell;
 		int i = 1, j = 0;
-		String sql = "CREATE TABLE data(mssv VARCHAR(100),class VARCHAR(300),department VARCHAR(255),faculty VARCHAR(255),gender VARCHAR(50), fullname VARCHAR(255),palceofbirth VARCHAR(255),schoolyear VARCHAR(255))";
-		PreparedStatement preparedStatement = connect.prepareStatement(sql);
+//		String sql = "CREATE TABLE "
+//				+ "data(mssv VARCHAR(100),class VARCHAR(300),"
+//				+ "department VARCHAR(255),faculty VARCHAR(255),"
+//				+ "gender VARCHAR(50), fullname VARCHAR(255),"
+//				+ "palceofbirth VARCHAR(255),schoolyear VARCHAR(255))";
+		StringBuffer stb = new StringBuffer("CREATE TABLE ");
+		stb.append(tableName);
+		stb.append("(");
+		row = sheet.getRow(0);
+		while ((cell = row.getCell(j)) != null) {
+			stb.append(cell.getStringCellValue());
+			stb.append(" VARCHAR(255),");
+			j++;
+		}
+		stb.deleteCharAt(stb.length() - 1);
+		stb.append(")");
+		System.out.println(stb.toString());
+		PreparedStatement preparedStatement = connect.prepareStatement(stb.toString());
 		preparedStatement.execute();
-		String query = "INSERT INTO data VALUES(?, ?, ?, ?, ?,?,?,?)";
-		PreparedStatement pre = connect.prepareStatement(query);
-		String v1 = "", v2 = "", v3 = "", v4 = "", v5 = "", v6 = "", v7 = "", v8 = "";
+		stb = new StringBuffer("INSERT INTO ");
+		stb.append(tableName);
+		stb.append(" VALUES");
+		stb.append("(");
+		for (int k = 0; k < j; k++) {
+			stb.append("?, ");
+		}
+		stb.deleteCharAt(stb.length() - 2);
+		stb.append(")");
+//		String query = "INSERT INTO data VALUES(?, ?, ?, ?, ?,?,?,?)";
+		System.out.println(stb.toString());
+		PreparedStatement pre = connect.prepareStatement(stb.toString());
+		
 		while ((row = sheet.getRow(i)) != null) {
+			j = 0;
 			while ((cell = row.getCell(j)) != null) {
-				if (i != 0 && j == 0) {
-					v1 = String.valueOf((int) cell.getNumericCellValue());
-					j++;
-					continue;
-				}
-				switch (j) {
-				case 1:
-					v2 = (String)cell.getStringCellValue();
-					break;
-				case 2:
-					v3 = (String)cell.getStringCellValue();
-					break;
-				case 3:
-					v4 = (String)cell.getStringCellValue();
-					break;
-				case 4:
-					v5 =(String) cell.getStringCellValue();
-					break;
-				case 5:
-					v6 = (String)cell.getStringCellValue();
-					break;
-				case 6:
-					v7 = (String)cell.getStringCellValue();
-					break;
-				case 7:
-					v8 = (String)cell.getStringCellValue();
-					break;
-				default:
-					break;
+				try {
+					pre.setString(j + 1, cell.getStringCellValue());
+					System.out.println(cell.getStringCellValue());
+				} catch (IllegalStateException e) {
+					pre.setString(j + 1, String.valueOf((int) cell.getNumericCellValue()));
 				}
 				j++;
 			}
-			pre.setString(1, v1);
-			pre.setString(2, v2);
-			pre.setString(3, v3);
-			pre.setString(4, v4);
-			pre.setString(5, v5);
-			pre.setString(6, v6);
-			pre.setString(7, v7);
-			pre.setString(8, v8);
 			pre.execute();
 			i++;
-			j = 0;
+			
 		}
 
 	}
+
 	public void copyVpro() throws ClassNotFoundException, SQLException {
 		Connection connectDB = DBConnection.getConnection(jdbcURL_1, userName_1, password_1);
 		System.out.println("c1 ok");
@@ -112,5 +133,5 @@ public class TranferData {
 			pre.execute();
 		}
 	}
-	
+
 }
