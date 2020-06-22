@@ -18,12 +18,17 @@ import java.net.ProtocolException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.sql.Connection;
+import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+
+import javax.swing.text.SimpleAttributeSet;
 
 import org.apache.poi.hssf.record.DBCellRecord;
 import org.apache.poi.ss.usermodel.Cell;
@@ -43,7 +48,7 @@ public class CollectData {
 	String folder = "D:/xampp/mysql/data/datawarehouse/data/";
 	int id;
 	String host, from_folder, download_to_folder_tmp, folder_destinati;
-
+	DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
 	public void getConfig() throws ClassNotFoundException, SQLException, IOException {
 		Connection connection = DBConnection.getConnection();
 		String sql = "Select * from config";
@@ -58,7 +63,7 @@ public class CollectData {
 			download_to_folder_tmp = rs.getString("download_to_dir_local");
 			folder_destinati = rs.getString("dir_local_destination");
 			if (login(host, username, password)) {
-				if (getListFile(host, from_folder, folder_destinati)) {
+				if (getListFile(host, from_folder, download_to_folder_tmp)) {
 
 				}
 			}
@@ -110,6 +115,19 @@ public class CollectData {
 
 	}
 
+	public void insertLog(int id_config, String filename, String source_folder, String filetype_downdload) throws ClassNotFoundException, SQLException {
+		String sql = "Insert into logs (logs.id_config,logs.filname,logs.source_folder,logs.filetype_download,logs.time_download) values(?,?,?,?,?)";
+		Connection connection = DBConnection.getConnection();
+		PreparedStatement pre = connection.prepareStatement(sql);
+		pre.setInt(1, id_config);
+		pre.setString(2, filename);
+		pre.setString(3, source_folder);
+		pre.setString(4, filetype_downdload);
+		pre.setDate(5, new Date(System.currentTimeMillis()));
+		pre.execute();
+		
+	}
+
 	public boolean getListFile(String host, String fromFolder, String folder_tmp) {
 		try {
 			HttpURLConnection httpClient = (HttpURLConnection) new URL(host + urlListFile).openConnection();
@@ -123,6 +141,7 @@ public class CollectData {
 			httpClient.setRequestMethod("GET");
 			httpClient.setDoInput(true);
 			httpClient.setDoOutput(true);
+			
 			// add request header
 			OutputStream os = httpClient.getOutputStream();
 			BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, "UTF-8"));
@@ -157,8 +176,12 @@ public class CollectData {
 				}
 				System.out.println(name);
 				System.out.println(path);
-				if (path.endsWith(".xlsx") || path.endsWith(".csv") || path.endsWith(".txt"))
-					downloadFile((String) jsonObject.get("name"), (String) jsonObject.get("path"), folder_tmp);
+				if (path.endsWith(".xlsx") || path.endsWith(".csv") || path.endsWith(".txt")) {
+					if (downloadFile((String) jsonObject.get("name"), (String) jsonObject.get("path"), folder_tmp)) {
+
+					}
+
+				}
 			}
 		} catch (ProtocolException e) {
 			// TODO Auto-generated catch block
@@ -275,14 +298,9 @@ public class CollectData {
 		}
 	}
 
-	public static void main(String[] args) {
-//		CollectData collectData = new CollectData();
-//		try {
-//			collectData.login();
-//			collectData.getListFile();
-//		} catch (IOException e) {
-//			// TODO Auto-generated catch block
-//			e.printStackTrace();
-//		}
+	public static void main(String[] args) throws ClassNotFoundException, SQLException {
+		CollectData collectData = new CollectData();
+		collectData.insertLog(1, "", "", ".xlsx");
+
 	}
 }
