@@ -49,6 +49,7 @@ public class CollectData {
 	int id;
 	String from_folder, download_to_dir_local, folder_destinati;
 	DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+
 	public void getConfig() throws ClassNotFoundException, SQLException, IOException {
 		Connection connection = DBConnection.getConnection();
 		String sql = "Select * from config";
@@ -69,14 +70,14 @@ public class CollectData {
 			System.out.println(download_to_dir_local);
 			folder_destinati = rs.getString("dir_local_destination");
 			System.out.println(folder_destinati);
-			if (login(host, username, password)) {
-				getListFile(connection,host, from_folder, download_to_dir_local);
+			if (login(host, "", password)) {
+//				getMD5File(host, "/ECEP/song.nguyen/DW_2020/data/sinvien_chieu_nhom16.xlsx");
+				getListFile(connection, host, from_folder, download_to_dir_local);
 			}
 		}
 	}
 
 	public boolean login(String host, String username, String password) throws IOException {
-		HttpURLConnection httpClient = (HttpURLConnection) new URL(host + urlLogin).openConnection();
 		// optional default is GET
 		HashMap<String, String> map = new HashMap<String, String>();
 		map.put("api", "SYNO.API.Auth");
@@ -86,41 +87,25 @@ public class CollectData {
 		map.put("passwd", password);
 		map.put("session", "FileStation");
 		map.put("format", "cookie");
-		httpClient.setRequestMethod("GET");
-		httpClient.setDoInput(true);
-		httpClient.setDoOutput(true);
-		// add request header
-		OutputStream os = httpClient.getOutputStream();
-		BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, "UTF-8"));
-		writer.write(getPostDataString(map));
-		writer.flush();
-		writer.close();
-		os.close();
-		int responseCode = httpClient.getResponseCode();
-		System.out.println("Response Code : " + responseCode);
-		try (BufferedReader in = new BufferedReader(new InputStreamReader(httpClient.getInputStream()))) {
-
-			StringBuilder response = new StringBuilder();
-			String line;
-
-			while ((line = in.readLine()) != null) {
-				response.append(line);
-			}
-			// print result
-			System.out.println(response.toString());
-			line = response.substring(response.lastIndexOf("{"), response.indexOf("}"));
-			sid = line.substring(line.indexOf(":") + 2, line.length() - 1);
-			System.out.println(sid);
-			if (line.contains("sid")) {
-				return true;
-			} else {
-				return false;
-			}
+		String json = getJsonFromUrl(host + urlLogin, map);
+		Object object = JSONValue.parse(json);
+		JSONObject jsonObject = (JSONObject) object;
+		try {
+			jsonObject = (JSONObject) jsonObject.get("data");
+			sid = (String) jsonObject.get("sid");
+		} catch (NullPointerException e) {
+			return false;
+		}
+		if (json.contains("sid")) {
+			return true;
+		} else {
+			return false;
 		}
 
 	}
 
-	public void insertLog(Connection connection,int id_config, String filename, String source_folder, String filetype_downdload,String status) throws ClassNotFoundException, SQLException {
+	public void insertLog(Connection connection, int id_config, String filename, String source_folder,
+			String filetype_downdload, String status) throws ClassNotFoundException, SQLException {
 		String sql = "Insert into logs (logs.id_config,logs.status_file,logs.filename,logs.source_folder,logs.filetype_download,logs.time_download) values(?,?,?,?,?,?)";
 		PreparedStatement pre = connection.prepareStatement(sql);
 		pre.setInt(1, id_config);
@@ -130,12 +115,11 @@ public class CollectData {
 		pre.setString(5, filetype_downdload);
 		pre.setDate(6, new Date(System.currentTimeMillis()));
 		pre.execute();
-		
+
 	}
 
-	public boolean getListFile(Connection connection,String host, String fromFolder, String folder_tmp) {
+	public boolean getListFile(Connection connection, String host, String fromFolder, String folder_tmp) {
 		try {
-			HttpURLConnection httpClient = (HttpURLConnection) new URL(host + urlListFile).openConnection();
 			// optional default is GET
 			System.out.println(fromFolder);
 			HashMap<String, String> map = new HashMap<String, String>();
@@ -144,28 +128,10 @@ public class CollectData {
 			map.put("method", "list");
 			map.put("folder_path", fromFolder);
 			map.put("_sid", sid);
-			httpClient.setRequestMethod("GET");
-			httpClient.setDoInput(true);
-			httpClient.setDoOutput(true);
 			
-			// add request header
-			OutputStream os = httpClient.getOutputStream();
-			BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, "UTF-8"));
-			writer.write(getPostDataString(map));
-			writer.flush();
-			writer.close();
-			os.close();
-			int responseCode = httpClient.getResponseCode();
-			System.out.println("Response Code : " + responseCode);
-			BufferedReader in = new BufferedReader(new InputStreamReader(httpClient.getInputStream()));
-			StringBuilder response = new StringBuilder();
-			String line;
-			while ((line = in.readLine()) != null) {
-				response.append(line);
-			}
-			// print result
-			System.out.println(response.toString());
-			Object obj = JSONValue.parse(response.toString());
+			String json = getJsonFromUrl(host + urlListFile, map);
+			
+			Object obj = JSONValue.parse(json);
 			JSONObject jsonObject = (JSONObject) obj;
 			jsonObject = (JSONObject) jsonObject.get("data");
 			JSONArray jsonArray = (JSONArray) jsonObject.get("files");
@@ -180,26 +146,15 @@ public class CollectData {
 					continue;
 				}
 				if (name.endsWith(".xlsx") || name.endsWith(".csv") || name.endsWith(".txt")) {
-					if (downloadFile(host,name, path, folder_tmp)) {
-						insertLog(connection, id, name, fromFolder, name.substring(name.indexOf(".")),"ER");
-					}else {
-						insertLog(connection, id, name, fromFolder, name.substring(name.indexOf(".")),"Download Error");
+					if (downloadFile(host, name, path, folder_tmp)) {
+						insertLog(connection, id, name, fromFolder, name.substring(name.indexOf(".")), "ER");
+					} else {
+						insertLog(connection, id, name, fromFolder, name.substring(name.indexOf(".")),
+								"Download Error");
 					}
 
 				}
 			}
-		} catch (ProtocolException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			return false;
-		} catch (MalformedURLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			return false;
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-			return false;
 		} catch (ClassNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -253,6 +208,71 @@ public class CollectData {
 		workBook.close();
 	}
 
+	public String getJsonFromUrl(String url, HashMap<String, String> param) {
+		HttpURLConnection httpClient;
+		try {
+			httpClient = (HttpURLConnection) new URL(url).openConnection();
+
+			httpClient.setRequestMethod("GET");
+			httpClient.setDoInput(true);
+			httpClient.setDoOutput(true);
+			// add request header
+			OutputStream os = httpClient.getOutputStream();
+			BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os, "UTF-8"));
+			writer.write(getPostDataString(param));
+			writer.flush();
+			writer.close();
+			os.close();
+			int responseCode = httpClient.getResponseCode();
+			System.out.println("Response Code : " + responseCode);
+			BufferedReader in = new BufferedReader(new InputStreamReader(httpClient.getInputStream()));
+			StringBuilder response = new StringBuilder();
+			String line;
+			while ((line = in.readLine()) != null) {
+				response.append(line);
+			}
+			System.out.println(response.toString());
+			httpClient.disconnect();
+			return response.toString();
+		} catch (IOException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			return "";
+		}
+	}
+
+	private String getMD5File(String host, String file_path) {
+		String taskid = getChecksum_TaskID(host, file_path);
+		HashMap<String, String> map = new HashMap<String, String>();
+		map.put("api", "SYNO.FileStation.MD5");
+		map.put("version", "1");
+		map.put("method", "status");
+		map.put("taskid", taskid);
+		map.put("_sid", sid);
+		String json = getJsonFromUrl(host + urlListFile, map);
+		Object obj = JSONValue.parse(json);
+		JSONObject jsonObject = (JSONObject) obj;
+		jsonObject = (JSONObject) jsonObject.get("data");
+		System.out.println((String) jsonObject.get("md5"));
+		return (String) jsonObject.get("md5");
+
+	}
+
+	private String getChecksum_TaskID(String host, String file_path) {
+		HashMap<String, String> map = new HashMap<String, String>();
+		map.put("api", "SYNO.FileStation.MD5");
+		map.put("version", "1");
+		map.put("method", "start");
+		map.put("file_path", file_path);
+		map.put("_sid", sid);
+		String json = getJsonFromUrl(host + urlListFile, map);
+		Object obj = JSONValue.parse(json);
+		JSONObject jsonObject = (JSONObject) obj;
+		jsonObject = (JSONObject) jsonObject.get("data");
+		System.out.println((String) jsonObject.get("taskid"));
+		return "\"" + (String) jsonObject.get("taskid") + "\"";
+	}
+
 	private String getPostDataString(HashMap<String, String> params) throws UnsupportedEncodingException {
 		StringBuilder result = new StringBuilder();
 		boolean first = true;
@@ -270,10 +290,10 @@ public class CollectData {
 		return result.toString();
 	}
 
-	public boolean downloadFile(String host,String fileName, String path, String folder_tmp) {
+	public boolean downloadFile(String host, String fileName, String path, String folder_tmp) {
 		HttpURLConnection httpClient;
 		try {
-			httpClient = (HttpURLConnection) new URL(host+urlListFile).openConnection();
+			httpClient = (HttpURLConnection) new URL(host + urlListFile).openConnection();
 
 			HashMap<String, String> map = new HashMap<String, String>();
 			map.put("api", "SYNO.FileStation.Download");
@@ -305,7 +325,7 @@ public class CollectData {
 			return true;
 		} catch (IOException e) {
 			// TODO Auto-generated catch block
-			System.out.println("Error download file"+fileName);
+			System.out.println("Error download file" + fileName);
 			e.printStackTrace();
 			return false;
 		}
