@@ -49,10 +49,11 @@ public class CollectData {
 	private String from_folder, download_to_dir_local;
 	private Timer timer;
 	SendMail sendMail;
+
 	public CollectData() {
 		sendMail = new SendMail();
 	}
-	
+
 	public void startTask(int idRowConfig) {
 		timer = new Timer();
 		TimerTask timerTask = new TimerTask() {
@@ -65,8 +66,9 @@ public class CollectData {
 				}
 			}
 		};
-		timer.schedule(timerTask, 0, 1*60*1000);
+		timer.schedule(timerTask, 0, 1 * 60 * 1000);
 	}
+
 	public void getConfig(int i) throws ClassNotFoundException, SQLException, IOException {
 		Connection connection = DBConnection.getConnection();
 		String sql = "Select * from config";
@@ -77,7 +79,7 @@ public class CollectData {
 			if (i == tmp) {
 				System.out.println("Start tanks");
 				id = rs.getInt("id");
-				System.out.println("id: "+id);
+				System.out.println("id: " + id);
 				String host = rs.getString("ip_address");
 				System.out.println("host: " + host);
 				String username = rs.getString("username");
@@ -88,8 +90,10 @@ public class CollectData {
 				System.out.println("from_folder: " + from_folder);
 				download_to_dir_local = rs.getString("download_to_dir_local");
 				System.out.println("download_to_dir_local: " + download_to_dir_local);
+				// login to server
 				if (login(host, username, password)) {
 					System.out.println("Login Success");
+					// login
 					getListFile(connection, host, from_folder, download_to_dir_local);
 				}
 				rs.close();
@@ -99,7 +103,7 @@ public class CollectData {
 			}
 			tmp++;
 		}
-		
+
 	}
 
 	public boolean login(String host, String username, String password) throws IOException {
@@ -211,7 +215,8 @@ public class CollectData {
 			// return complete hash
 			return sb.toString();
 		} catch (NoSuchAlgorithmException e) {
-			sendMail.sendEmail(e.toString(), "nguyennhubao999@gmail.com", "NoSuchAlgorithmException in getMD5FileLocal");
+			sendMail.sendEmail(e.toString(), "nguyennhubao999@gmail.com",
+					"NoSuchAlgorithmException in getMD5FileLocal");
 			return "";
 		} catch (FileNotFoundException e) {
 			sendMail.sendEmail(e.toString(), "nguyennhubao999@gmail.com", "FileNotFoundException in getMD5FileLocal");
@@ -257,13 +262,11 @@ public class CollectData {
 				try {
 					groupId = getGroupID(fileName);
 				} catch (NumberFormatException e) {
-					System.out.println("Malformed fileName: " + fileName);
-					sendMail.sendEmail("Malformed fileName: " + fileName+"\n"+e.toString(), "nguyennhubao999@gmail.com", "Malformed fileName");
 					continue;
 				}
 				// kiểm tra group id đã tồn tại hay chưa
 				ResultSet rs = checkFileIsExitDB(connection, groupId, fileName);
-				// file chưa tồn tại
+				// file mới chưa download
 				if (!rs.next()) {
 					// dowload file
 					if (downloadFile(host, fileName, path, download_to_dir_local)) {
@@ -279,7 +282,7 @@ public class CollectData {
 						insertNewLog(connection, id, groupId, fileName, fromFolder,
 								fileName.substring(fileName.indexOf(".")), "Download Error", "");
 					}
-
+					// file đã tồn tại kiểm tra update
 				} else {
 					// getStatusFile
 					if (rs.getString("status_file").equals("Download Error")
@@ -294,22 +297,24 @@ public class CollectData {
 							// download file thất bại update log
 							System.out.println("ReDownlaod fail " + fileName);
 							updateLogs(connection, rs.getInt("id"), "Download Error", "");
-							
+
 						}
 					} else {
+
 						// get md5 file in server
 						String md5Sourc = getMD5File(host, path);
 						// get md5 file in local
 						String md5Local = getMD5FileLocal(download_to_dir_local + fileName);
 						// kiểm tra lỗi md5 của file in local và md5 file trên server
-						if(md5Local==""||md5Sourc==null) continue;
+						if (md5Local == "" || md5Sourc == null)
+							continue;
 						// md5 giống nhau thì tiếp tục
 						if (md5Local.equals(md5Sourc)) {
 							System.out.println("File nothing change" + fileName);
 							continue;
 						} else {
 							System.out.println("File is change" + fileName);
-							// insert log to Download update
+							// thay đổi trang thái file trong logs
 							updateLogs(connection, rs.getInt("id"), "Download Update", "");
 						}
 					}
@@ -447,7 +452,8 @@ public class CollectData {
 			return true;
 		} catch (IOException e) {
 			System.out.println("Error download file" + fileName);
-			sendMail.sendEmail("Download error file:"+fileName+"\n"+e.toString(), "nguyennhubao999@gmail.com", "Download Error");
+			sendMail.sendEmail("Download error file:" + fileName + "\n" + e.toString(), "nguyennhubao999@gmail.com",
+					"Download Error");
 			return false;
 		}
 	}
@@ -497,7 +503,7 @@ public class CollectData {
 	public static void main(String[] args) throws ClassNotFoundException, SQLException, IOException {
 		CollectData collectData = new CollectData();
 		collectData.startTask(0);
-		
+
 //		collectData.login("http://drive.ecepvn.org:5000/", "guest_access", "123456");
 //		collectData.getMD5File("http://drive.ecepvn.org:5000/", "/ECEP/song.nguyen/DW_2020/data/sinhvien_chieu_nhom16.xlsx");
 //		System.out.println(collectData.getMD5FileLocal("D:\\00_HK2_3\\DataWarehouse\\sinhvien_chieu_nhom16.xlsx"));
