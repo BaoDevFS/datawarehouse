@@ -95,6 +95,8 @@ public class CollectData {
 					System.out.println("Login Success");
 					// login
 					getListFile(connection, host, from_folder, download_to_dir_local);
+				}else {
+					sendMail.sendEmail("Login fail", "Nguyennhubao999@gmail.com", "Login Fail");
 				}
 				rs.close();
 				connection.close();
@@ -306,8 +308,10 @@ public class CollectData {
 						// get md5 file in local
 						String md5Local = getMD5FileLocal(download_to_dir_local + fileName);
 						// kiểm tra lỗi md5 của file in local và md5 file trên server
-						if (md5Local == "" || md5Sourc == null)
+						if (md5Local == "" || md5Sourc == null) {
+							removelog(connection, rs.getInt("id"));
 							continue;
+						}
 						// md5 giống nhau thì tiếp tục
 						if (md5Local.equals(md5Sourc)) {
 							System.out.println("File nothing change" + fileName);
@@ -329,7 +333,18 @@ public class CollectData {
 		return true;
 
 	}
-
+	public void removelog(Connection connection,int id) {
+		String sql = "Delete from logs where id="+id;
+		PreparedStatement preparedStatement;
+		try {
+			preparedStatement = connection.prepareStatement(sql);
+			preparedStatement.execute();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+		
+	}
 	public String getJsonFromUrl(String url, HashMap<String, String> param) {
 		HttpURLConnection httpClient;
 		try {
