@@ -44,7 +44,6 @@ public class CollectData {
 	private String urlLogin = "/webapi/auth.cgi";
 	private String urlListFile = "/webapi/entry.cgi";
 	private String sid = "";
-//	private String folder = "D:/xampp/mysql/data/datawarehouse/data/";
 	private int id;
 	private String from_folder, download_to_dir_local;
 	private Timer timer;
@@ -66,7 +65,7 @@ public class CollectData {
 				}
 			}
 		};
-		timer.schedule(timerTask, 0, 1 * 60 * 1000);
+		timer.schedule(timerTask, 0, 30 * 1000);
 	}
 
 	public void getConfig(int i) throws ClassNotFoundException, SQLException, IOException {
@@ -95,7 +94,7 @@ public class CollectData {
 					System.out.println("Login Success");
 					// login
 					getListFile(connection, host, from_folder, download_to_dir_local);
-				}else {
+				} else {
 					sendMail.sendEmail("Login fail", "Nguyennhubao999@gmail.com", "Login Fail");
 				}
 				rs.close();
@@ -184,7 +183,6 @@ public class CollectData {
 	}
 
 	public String getMD5FileLocal(String pathFile) {
-
 		try {
 			MessageDigest md5Digest = MessageDigest.getInstance("MD5");
 
@@ -333,8 +331,9 @@ public class CollectData {
 		return true;
 
 	}
-	public void removelog(Connection connection,int id) {
-		String sql = "Delete from logs where id="+id;
+
+	public void removelog(Connection connection, int id) {
+		String sql = "Delete from logs where id=" + id;
 		PreparedStatement preparedStatement;
 		try {
 			preparedStatement = connection.prepareStatement(sql);
@@ -343,8 +342,9 @@ public class CollectData {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-		
+
 	}
+
 	public String getJsonFromUrl(String url, HashMap<String, String> param) {
 		HttpURLConnection httpClient;
 		try {
@@ -474,7 +474,6 @@ public class CollectData {
 	}
 
 	public void convertSelectedSheetInXLXSFileToCSV(File xlsxFile, int sheetIdx) throws Exception {
-
 		FileInputStream fileInStream = new FileInputStream(xlsxFile);
 
 		// Open the xlsx and get the requested sheet from the workbook
@@ -518,7 +517,7 @@ public class CollectData {
 	public static void main(String[] args) throws ClassNotFoundException, SQLException, IOException {
 		CollectData collectData = new CollectData();
 		collectData.startTask(0);
-
+		
 //		collectData.login("http://drive.ecepvn.org:5000/", "guest_access", "123456");
 //		collectData.getMD5File("http://drive.ecepvn.org:5000/", "/ECEP/song.nguyen/DW_2020/data/sinhvien_chieu_nhom16.xlsx");
 //		System.out.println(collectData.getMD5FileLocal("D:\\00_HK2_3\\DataWarehouse\\sinhvien_chieu_nhom16.xlsx"));
