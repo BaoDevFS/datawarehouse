@@ -52,7 +52,7 @@ public class TranfertoStaging {
 				}
 			} else if (src.endsWith("csv") || src.endsWith("txt")) {
 				try {
-					loadFromCSVOrTXT(src, delimited, tableName);
+					loadFromCSVOrTXT1(src, delimited, tableName);
 				} catch (Exception e) {
 					e.printStackTrace();
 					continue;
@@ -123,7 +123,18 @@ public class TranfertoStaging {
 		}
 
 	}
-
+	//import data from csv or txt using load data infile
+	private void loadFromCSVOrTXT1(String source_file, String delimited, String tableName) throws ClassNotFoundException, SQLException {
+		Connection connect = DBConnection.getConnection(DBConnection.jdbcURL_1);
+		System.out.println("Connect DB Successfully");
+		String sql = "LOAD DATA INFILE "
+				+ "'"+source_file+"'"
+				+" INTO TABLE "+ tableName+ " FIELDS TERMINATED BY '"+ delimited+"'"+ " IGNORE 1 LINES;";
+		
+		PreparedStatement pre = connect.prepareStatement(sql);
+		pre.executeQuery();
+		System.out.println("Load success");
+	}
 	public static void main(String[] args) {
 		try {
 			new TranfertoStaging().loadFromSourceFile();
