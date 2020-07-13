@@ -1,20 +1,25 @@
 import java.util.ArrayList;
+import java.util.Date;
+import java.util.StringTokenizer;
 
 import staging.ProcessStaging;
+import wasehouse.DataHandle;
 import wasehouse.ProcessWasehouse;
 
 public class App {
 	public static void main(String[] args) {
 		String url = "jdbc:mysql://localhost:3306/wasehouse?useUnicode=true&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=UTC";
-    	String user = "root";
-    	String password = "";
-		ProcessStaging processStaging = new ProcessStaging();
-		ArrayList<String> result = processStaging.getData(url, user, password);
-		System.out.println(result);
 		
-		String urlStaging = "jdbc:mysql://localhost:3306/wasehouse?useUnicode=true&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=UTC";
+//		ProcessStaging processStaging = new ProcessStaging();
+//		ArrayList<String> result = processStaging.getData();
+//		System.out.println(result);
+		
 		ProcessWasehouse processWasehouse = new ProcessWasehouse();
-		processWasehouse.getData(url, user, password, urlStaging);
+//		processWasehouse.transport();
+//		
+		processWasehouse.testDuplicateData();
+//		processWasehouse.test();
+		
 	}
 
 }
