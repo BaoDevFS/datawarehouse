@@ -266,7 +266,7 @@ public class CollectData {
 
 	private void processFileExitsInSystem(Connection connection, String host, String fileName, String pathFile,
 			String statusFile, int id) {
-		if (statusFile.equals("Download Error") || statusFile.equals("Download Update")) {
+		if (statusFile.equals("Download Error") || statusFile.equals("Download Update")|| statusFile.equals("FILE_NOT_FOUND")) {
 			if (downloadFile(host, fileName, pathFile, download_to_dir_local)) {
 				// get md5 local file
 				String localMd5 = getMD5FileLocal(download_to_dir_local + fileName);
