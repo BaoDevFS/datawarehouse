@@ -18,7 +18,7 @@ public class Wasehouse {
 		Connection con = ConnectDB.getConnection();
 		//get data wasehouse
 				ArrayList<SinhVien> wasehouses = new ArrayList<SinhVien>();
-				String sqlWasehouse = "select * from wsinhvien";
+				String sqlWasehouse = "select * from wasehouse";
 				Statement statement;
 				
 				try {
@@ -39,13 +39,13 @@ public class Wasehouse {
 	public static void updateData(String id) {
 		Connection con = ConnectDB.getConnection();
 		//update to wasehouse
-		String sql = "update wSinhVien set expired = ? where id = ?";
+		String sql = "update wasehouse set expired = ? where id = ?";
 		PreparedStatement ps;
 		try {
 			ps = con.prepareStatement(sql);
 			ps.setString(2, id);
 			//khong gioi han thoi gian het han
-			ps.setDate(1, new Date(1-1900, 11, 31));
+			ps.setDate(1, DataHandle.getDate());
 			ps.execute();
 			
 		} catch (SQLException e) {
@@ -58,7 +58,7 @@ public class Wasehouse {
 	public static void insertData(SinhVien st) {
 		Connection con = ConnectDB.getConnection();
 		//insert to wasehouse
-		String sql = "insert into wSinhVien values(?,?,?,?,?,?,?,?,?,?,?,?,?)";
+		String sql = "insert into wasehouse values(?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		PreparedStatement ps;
 		try {
 			ps = con.prepareStatement(sql);

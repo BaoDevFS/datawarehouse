@@ -14,7 +14,7 @@ public class Staging {
 		Connection con = ConnectDB.getConnection();
 
 		ArrayList<SinhVien> stagings = new ArrayList<SinhVien>();
-		String sqlWasehouse = "select * from ssinhvien";
+		String sqlWasehouse = "select * from staging";
 		Statement statement;
 
 		try {
