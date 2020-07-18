@@ -6,7 +6,7 @@ import java.sql.SQLException;
 
 public class DBConnection {
 	static String jdbcURL_1 = "jdbc:mysql://localhost/staging?useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC";
-	static String jdbcURL_2 = "jdbc:mysql://localhost/datawarehouse?useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC";
+	static String jdbcURL_2 = "jdbc:mysql://localhost/controldb?useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC";
 	static String userName_1 = "root";
 	static String password_1 = "";
 
