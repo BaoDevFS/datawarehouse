@@ -23,6 +23,7 @@ import java.sql.Date;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -48,6 +49,8 @@ public class CollectData {
 	private String from_folder, download_to_dir_local;
 	private Timer timer;
 	SendMail sendMail;
+	ArrayList<String> listPathFile = new ArrayList<String>();
+	ArrayList<String> listFileName = new ArrayList<String>();
 
 	public CollectData() {
 		sendMail = new SendMail();
@@ -94,6 +97,7 @@ public class CollectData {
 					System.out.println("Login Success");
 					// login
 					getListFile(connection, host, from_folder, download_to_dir_local);
+					checkStatusFileInSystem(connection, host, from_folder, download_to_dir_local);
 				} else {
 					sendMail.sendEmail("Login fail", "Nguyennhubao999@gmail.com", "Login Fail");
 				}
@@ -135,26 +139,41 @@ public class CollectData {
 	}
 
 	public void insertNewLog(Connection connection, int id_config, int id_group, String filename, String source_folder,
-			String filetype_downdload, String status, String md5) throws ClassNotFoundException, SQLException {
+			String filetype_downdload, String status, String md5) {
 		String sql = "Insert into logs (logs.id_config,logs.group_id,logs.status_file,logs.filename,logs.source_folder,logs.filetype_download,logs.time_download,logs.MD5) values(?,?,?,?,?,?,?,?)";
-		PreparedStatement pre = connection.prepareStatement(sql);
-		pre.setInt(1, id_config);
-		pre.setInt(2, id_group);
-		pre.setString(3, status);
-		pre.setString(4, filename);
-		pre.setString(5, source_folder);
-		pre.setString(6, filetype_downdload);
-		pre.setDate(7, new Date(System.currentTimeMillis()));
-		pre.setString(8, md5);
-		pre.execute();
+		PreparedStatement pre;
+		try {
+			pre = connection.prepareStatement(sql);
+			pre.setInt(1, id_config);
+			pre.setInt(2, id_group);
+			pre.setString(3, status);
+			pre.setString(4, filename);
+			pre.setString(5, source_folder);
+			pre.setString(6, filetype_downdload);
+			pre.setDate(7, new Date(System.currentTimeMillis()));
+			pre.setString(8, md5);
+			pre.execute();
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			sendMail.sendEmail("Insert new log error:" + "\n" + e.toString(), "nguyennhubao999@gmail.com",
+					"Download Error");
+		}
 
 	}
 
 	// cập nhật thời gian download file
-	public void updateLogs(Connection connection, int id, String status, String md5) throws SQLException {
-		PreparedStatement pre = connection.prepareStatement(
-				"update logs set time_download=now(), status_file='" + status + "',MD5='" + md5 + "' where id= " + id);
-		pre.executeUpdate();
+	public void updateLogs(Connection connection, int id, String status, String md5) {
+		PreparedStatement pre;
+		try {
+			pre = connection.prepareStatement("update logs set time_download=now(), status_file='" + status + "',MD5='"
+					+ md5 + "' where id= " + id);
+			pre.executeUpdate();
+		} catch (SQLException e) {
+			sendMail.sendEmail("UpdateLog Error in id:" + id + "\n" + e.toString(), "nguyennhubao999@gmail.com",
+					"UpdateLog Error");
+			e.printStackTrace();
+		}
+
 	}
 
 	private int getGroupID(String name) {
@@ -227,106 +246,161 @@ public class CollectData {
 		}
 	}
 
-	public boolean getListFile(Connection connection, String host, String fromFolder, String download_to_dir_local) {
-		try {
-			// optional default is GET
-			System.out.println(fromFolder);
-			HashMap<String, String> map = new HashMap<String, String>();
-			map.put("api", "SYNO.FileStation.List");
-			map.put("version", "1");
-			map.put("method", "list");
-			map.put("folder_path", fromFolder);
-			map.put("_sid", sid);
-			// get json list file
-			String json = getJsonFromUrl(host + urlListFile, map);
-			//
-			Object obj = JSONValue.parse(json);
-			JSONObject jsonObject = (JSONObject) obj;
-			jsonObject = (JSONObject) jsonObject.get("data");
-			JSONArray jsonArray = (JSONArray) jsonObject.get("files");
-			String fileName, path;
-			int groupId;
-			for (int i = 0; i < jsonArray.size(); i++) {
-				fileName = "";
-				path = "";
-				jsonObject = (JSONObject) jsonArray.get(i);
-				fileName = (String) jsonObject.get("name");
-				path = (String) jsonObject.get("path");
-				if (!fileName.startsWith("sinhvien")) {
-					continue;
-				}
-				if (!checkFileType(fileName)) {
-					continue;
-				}
-				// get group id để kiểm tra
-				try {
-					groupId = getGroupID(fileName);
-				} catch (NumberFormatException e) {
-					continue;
-				}
-				// kiểm tra group id đã tồn tại hay chưa
+	private void processFileNotExitsInSystem(Connection connection, String host, String fileName, String pathFile,
+			int groupId, String fromFolder) {
+		// dowload file
+		if (downloadFile(host, fileName, pathFile, download_to_dir_local)) {
+			// get md5 local file
+			String localMd5 = getMD5FileLocal(download_to_dir_local + fileName);
+			// ghi log
+			System.out.println("Download success " + fileName);
+			insertNewLog(connection, id, groupId, fileName, fromFolder, fileName.substring(fileName.indexOf(".")), "ER",
+					localMd5);
+		} else {
+			// download file thất bại insert log
+			System.out.println("Download fail " + fileName);
+			insertNewLog(connection, id, groupId, fileName, fromFolder, fileName.substring(fileName.indexOf(".")),
+					"Download Error", "");
+		}
+	}
+
+	private void processFileExitsInSystem(Connection connection, String host, String fileName, String pathFile,
+			String statusFile, int id) {
+		if (statusFile.equals("Download Error") || statusFile.equals("Download Update")) {
+			if (downloadFile(host, fileName, pathFile, download_to_dir_local)) {
+				// get md5 local file
+				String localMd5 = getMD5FileLocal(download_to_dir_local + fileName);
+				// cập nhật log
+				System.out.println("ReDownlaod success " + fileName);
+				updateLogs(connection, id, "ER", localMd5);
+			} else {
+				// download file thất bại update log
+				System.out.println("ReDownlaod fail " + fileName);
+				updateLogs(connection, id, "Download Error", "");
+
+			}
+		} else {
+			// get md5 file in server
+			String md5Sourc = getMD5File(host, pathFile);
+			// get md5 file in local
+			String md5Local = getMD5FileLocal(download_to_dir_local + fileName);
+			// kiểm tra lỗi md5 của file in local và md5 file trên server
+			if (md5Local == "" || md5Sourc == null) {
+				removelog(connection, id);
+				return;
+			}
+			// md5 giống nhau thì tiếp tục
+			if (md5Local.equals(md5Sourc)) {
+				System.out.println("File nothing change" + fileName);
+			} else {
+				System.out.println("File is change" + fileName);
+				// thay đổi trang thái file trong logs
+				updateLogs(connection, id, "Download Update", "");
+			}
+		}
+	}
+
+	public void checkStatusFileInSystem(Connection connection, String host, String fromFolder,
+			String download_to_dir_local) {
+		String fileName, pathFile;
+		int groupId;
+		for (int i = 0; i < listFileName.size(); i++) {
+			fileName = listFileName.get(i);
+			pathFile = listPathFile.get(i);
+			// get group id để kiểm tra
+			try {
+				groupId = getGroupID(fileName);
+			} catch (NumberFormatException e) {
+				continue;
+			}
+			// kiểm tra group id đã tồn tại hay chưa
+			try {
 				ResultSet rs = checkFileIsExitDB(connection, groupId, fileName);
-				// file mới chưa download
+
 				if (!rs.next()) {
-					// dowload file
-					if (downloadFile(host, fileName, path, download_to_dir_local)) {
-						// get md5 local file
-						String localMd5 = getMD5FileLocal(download_to_dir_local + fileName);
-						// ghi log
-						System.out.println("Download success " + fileName);
-						insertNewLog(connection, id, groupId, fileName, fromFolder,
-								fileName.substring(fileName.indexOf(".")), "ER", localMd5);
-					} else {
-						// download file thất bại insert log
-						System.out.println("Download fail " + fileName);
-						insertNewLog(connection, id, groupId, fileName, fromFolder,
-								fileName.substring(fileName.indexOf(".")), "Download Error", "");
-					}
-					// file đã tồn tại kiểm tra update
+					processFileNotExitsInSystem(connection, host, fileName, pathFile, groupId, fromFolder);
 				} else {
-					// getStatusFile
-					if (rs.getString("status_file").equals("Download Error")
-							|| rs.getString("status_file").equals("Download Update")) {
-						if (downloadFile(host, fileName, path, download_to_dir_local)) {
-							// get md5 local file
-							String localMd5 = getMD5FileLocal(download_to_dir_local + fileName);
-							// cập nhật log
-							System.out.println("ReDownlaod success " + fileName);
-							updateLogs(connection, rs.getInt("id"), "ER", localMd5);
-						} else {
-							// download file thất bại update log
-							System.out.println("ReDownlaod fail " + fileName);
-							updateLogs(connection, rs.getInt("id"), "Download Error", "");
-
-						}
-					} else {
-
-						// get md5 file in server
-						String md5Sourc = getMD5File(host, path);
-						// get md5 file in local
-						String md5Local = getMD5FileLocal(download_to_dir_local + fileName);
-						// kiểm tra lỗi md5 của file in local và md5 file trên server
-						if (md5Local == "" || md5Sourc == null) {
-							removelog(connection, rs.getInt("id"));
-							continue;
-						}
-						// md5 giống nhau thì tiếp tục
-						if (md5Local.equals(md5Sourc)) {
-							System.out.println("File nothing change" + fileName);
-							continue;
-						} else {
-							System.out.println("File is change" + fileName);
-							// thay đổi trang thái file trong logs
-							updateLogs(connection, rs.getInt("id"), "Download Update", "");
-						}
-					}
+					processFileExitsInSystem(connection, host, fileName, pathFile, rs.getString("status_file"),
+							rs.getInt("id"));
 				}
 				rs.close();
+			} catch (SQLException e) {
+				sendMail.sendEmail(e.toString(), "nguyennhubao999@gmail.com",
+						"Error In Funtion CheckStatusFileInSystem");
 			}
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		} catch (SQLException e) {
-			e.printStackTrace();
+		}
+	}
+
+	public boolean getListFile(Connection connection, String host, String fromFolder, String download_to_dir_local) {
+		// optional default is GET
+		System.out.println(fromFolder);
+		HashMap<String, String> map = new HashMap<String, String>();
+		map.put("api", "SYNO.FileStation.List");
+		map.put("version", "1");
+		map.put("method", "list");
+		map.put("folder_path", fromFolder);
+		map.put("_sid", sid);
+		// get json list file
+		String json = getJsonFromUrl(host + urlListFile, map);
+		//
+		Object obj = JSONValue.parse(json);
+		JSONObject jsonObject = (JSONObject) obj;
+		jsonObject = (JSONObject) jsonObject.get("data");
+		JSONArray jsonArray = (JSONArray) jsonObject.get("files");
+		String fileName, path;
+		for (int i = 0; i < jsonArray.size(); i++) {
+			fileName = "";
+			path = "";
+			jsonObject = (JSONObject) jsonArray.get(i);
+			fileName = (String) jsonObject.get("name");
+			path = (String) jsonObject.get("path");
+			if (!fileName.startsWith("sinhvien")) {
+				continue;
+			}
+			if (!checkFileType(fileName)) {
+				continue;
+			}
+			listFileName.add(fileName);
+			listPathFile.add(path);
+			// get group id để kiểm tra
+//				try {
+//					groupId = getGroupID(fileName);
+//				} catch (NumberFormatException e) {
+//					continue;
+//				}
+			/*
+			 * // kiểm tra group id đã tồn tại hay chưa ResultSet rs =
+			 * checkFileIsExitDB(connection, groupId, fileName); // file mới chưa download
+			 * if (!rs.next()) { // dowload file if (downloadFile(host, fileName, path,
+			 * download_to_dir_local)) { // get md5 local file String localMd5 =
+			 * getMD5FileLocal(download_to_dir_local + fileName); // ghi log
+			 * System.out.println("Download success " + fileName); insertNewLog(connection,
+			 * id, groupId, fileName, fromFolder, fileName.substring(fileName.indexOf(".")),
+			 * "ER", localMd5); } else { // download file thất bại insert log
+			 * System.out.println("Download fail " + fileName); insertNewLog(connection, id,
+			 * groupId, fileName, fromFolder, fileName.substring(fileName.indexOf(".")),
+			 * "Download Error", ""); } // file đã tồn tại kiểm tra update } else { //
+			 * getStatusFile if (rs.getString("status_file").equals("Download Error") ||
+			 * rs.getString("status_file").equals("Download Update")) { if
+			 * (downloadFile(host, fileName, path, download_to_dir_local)) { // get md5
+			 * local file String localMd5 = getMD5FileLocal(download_to_dir_local +
+			 * fileName); // cập nhật log System.out.println("ReDownlaod success " +
+			 * fileName); updateLogs(connection, rs.getInt("id"), "ER", localMd5); } else {
+			 * // download file thất bại update log System.out.println("ReDownlaod fail " +
+			 * fileName); updateLogs(connection, rs.getInt("id"), "Download Error", "");
+			 * 
+			 * } } else {
+			 * 
+			 * // get md5 file in server String md5Sourc = getMD5File(host, path); // get
+			 * md5 file in local String md5Local = getMD5FileLocal(download_to_dir_local +
+			 * fileName); // kiểm tra lỗi md5 của file in local và md5 file trên server if
+			 * (md5Local == "" || md5Sourc == null) { removelog(connection,
+			 * rs.getInt("id")); continue; } // md5 giống nhau thì tiếp tục if
+			 * (md5Local.equals(md5Sourc)) { System.out.println("File nothing change" +
+			 * fileName); continue; } else { System.out.println("File is change" +
+			 * fileName); // thay đổi trang thái file trong logs updateLogs(connection,
+			 * rs.getInt("id"), "Download Update", ""); } } } rs.close();
+			 */
 		}
 		return true;
 
@@ -517,7 +591,7 @@ public class CollectData {
 	public static void main(String[] args) throws ClassNotFoundException, SQLException, IOException {
 		CollectData collectData = new CollectData();
 		collectData.startTask(0);
-		
+
 //		collectData.login("http://drive.ecepvn.org:5000/", "guest_access", "123456");
 //		collectData.getMD5File("http://drive.ecepvn.org:5000/", "/ECEP/song.nguyen/DW_2020/data/sinhvien_chieu_nhom16.xlsx");
 //		System.out.println(collectData.getMD5FileLocal("D:\\00_HK2_3\\DataWarehouse\\sinhvien_chieu_nhom16.xlsx"));
