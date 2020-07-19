@@ -49,8 +49,8 @@ public class CollectData {
 	private String from_folder, download_to_dir_local;
 	private Timer timer;
 	SendMail sendMail;
-	ArrayList<String> listPathFile = new ArrayList<String>();
-	ArrayList<String> listFileName = new ArrayList<String>();
+	ArrayList<String> listPathFile ;
+	ArrayList<String> listFileName ;
 
 	public CollectData() {
 		sendMail = new SendMail();
@@ -68,17 +68,15 @@ public class CollectData {
 				}
 			}
 		};
-		timer.schedule(timerTask, 0, 30 * 1000);
+		timer.schedule(timerTask, 0, 1*60* 1000);
 	}
 
 	public void getConfig(int i) throws ClassNotFoundException, SQLException, IOException {
 		Connection connection = DBConnection.getConnection("CONTROLDB");
-		String sql = "Select * from config";
+		String sql = "Select * from config where id ="+i;
 		PreparedStatement pre = connection.prepareStatement(sql);
 		ResultSet rs = pre.executeQuery();
-		int tmp = 0;
 		while (rs.next()) {
-			if (i == tmp) {
 				System.out.println("Start tanks");
 				id = rs.getInt("id");
 				System.out.println("id: " + id);
@@ -105,8 +103,6 @@ public class CollectData {
 				connection.close();
 				System.out.println("End tanks");
 				break;
-			}
-			tmp++;
 		}
 
 	}
@@ -263,7 +259,22 @@ public class CollectData {
 					"Download Error", "");
 		}
 	}
-
+	private String getMd5FromLog(Connection connection,int id) {
+		String sql = "Select MD5 from logs where id="+id;
+		try {
+			PreparedStatement preparedStatement = connection.prepareStatement(sql);
+			ResultSet rs = preparedStatement.executeQuery();
+			if(rs.next()) {
+				return rs.getString(1);
+			}else {
+				return "";
+			}
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			sendMail.sendEmail(e.toString(), "nguyennhubao999@gmail.com", "LỖI KHÔNG LẤY ĐƯỢC MD5");
+			return "";
+		}
+	}
 	private void processFileExitsInSystem(Connection connection, String host, String fileName, String pathFile,
 			String statusFile, int id) {
 		if (statusFile.equals("Download Error") || statusFile.equals("Download Update")|| statusFile.equals("FILE_NOT_FOUND")) {
@@ -283,7 +294,8 @@ public class CollectData {
 			// get md5 file in server
 			String md5Sourc = getMD5File(host, pathFile);
 			// get md5 file in local
-			String md5Local = getMD5FileLocal(download_to_dir_local + fileName);
+//			String md5Local = getMD5FileLocal(download_to_dir_local + fileName);
+			String md5Local = getMd5FromLog(connection, id);
 			// kiểm tra lỗi md5 của file in local và md5 file trên server
 			if (md5Local == "" || md5Sourc == null) {
 				removelog(connection, id);
@@ -291,9 +303,9 @@ public class CollectData {
 			}
 			// md5 giống nhau thì tiếp tục
 			if (md5Local.equals(md5Sourc)) {
-				System.out.println("File nothing change" + fileName);
+				System.out.println("File nothing change: " + fileName);
 			} else {
-				System.out.println("File is change" + fileName);
+				System.out.println("File is change: " + fileName);
 				// thay đổi trang thái file trong logs
 				updateLogs(connection, id, "Download Update", "");
 			}
@@ -333,6 +345,8 @@ public class CollectData {
 
 	public boolean getListFile(Connection connection, String host, String fromFolder, String download_to_dir_local) {
 		// optional default is GET
+		listPathFile = new ArrayList<String>();
+		listFileName = new ArrayList<String>();
 		System.out.println(fromFolder);
 		HashMap<String, String> map = new HashMap<String, String>();
 		map.put("api", "SYNO.FileStation.List");
@@ -590,7 +604,7 @@ public class CollectData {
 
 	public static void main(String[] args) throws ClassNotFoundException, SQLException, IOException {
 		CollectData collectData = new CollectData();
-		collectData.startTask(0);
+		collectData.startTask(1);
 
 //		collectData.login("http://drive.ecepvn.org:5000/", "guest_access", "123456");
 //		collectData.getMD5File("http://drive.ecepvn.org:5000/", "/ECEP/song.nguyen/DW_2020/data/sinhvien_chieu_nhom16.xlsx");

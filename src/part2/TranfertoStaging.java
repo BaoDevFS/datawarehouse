@@ -11,6 +11,8 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.StringTokenizer;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -27,26 +29,42 @@ public class TranfertoStaging {
 	Cell cell;
 	Sheet sheet;
 	String tableName = "staging";
+	private Timer timer;
+
+	public void startTask(int idRowConfig) {
+		timer = new Timer();
+		TimerTask timerTask = new TimerTask() {
+			@Override
+			public void run() {
+				try {
+					loadFromSourceFile(idRowConfig);
+				} catch (ClassNotFoundException | SQLException | IOException e) {
+					e.printStackTrace();
+				}
+			}
+		};
+		timer.schedule(timerTask, 0, 1*60* 1000);
+	}
 
 	// jdbcURL_2 là controldb, jdbcURL_1 là staging database
 	public void loadFromSourceFile(int idConfig) throws ClassNotFoundException, SQLException, IOException {
 		// get logs
 		String dir = "", src, delimited, status;
 		int idFile = 0;
-		//Mở kết nối với controldb
+		// Mở kết nối với controldb
 		Connection connectDB = DBConnection.getConnection("CONTROLDB");
-		//st1 để lấy folder đang lưu các file dữ liệu, st để lấy tên của từng file
+		// st1 để lấy folder đang lưu các file dữ liệu, st để lấy tên của từng file
 		Statement st1 = connectDB.createStatement();
-		ResultSet rs1 = st1.executeQuery("SELECT * FROM config where id="+idConfig);
+		ResultSet rs1 = st1.executeQuery("SELECT * FROM config where id=" + idConfig);
 		if (rs1.next()) {
 			dir = rs1.getString("download_to_dir_local");
-		}else {
-			System.out.println("Không có bản ghi nào có config id là "+idConfig);
+		} else {
+			System.out.println("Không có bản ghi nào có config id là " + idConfig);
 			return;
 		}
 		System.out.println("Directory: " + dir);
 		Statement st = connectDB.createStatement();
-		ResultSet rs = st.executeQuery("SELECT * FROM logs where id_config="+idConfig);
+		ResultSet rs = st.executeQuery("SELECT * FROM logs where id_config=" + idConfig);
 
 		// get one row on table
 		while (rs.next()) {
@@ -127,16 +145,18 @@ public class TranfertoStaging {
 		pre.close();
 		con.close();
 	}
-public void truncateTable(String database,String tableName) throws SQLException {
-	String sql = "TRUNCATE TABLE "+tableName;
-	Connection con = DBConnection.getConnection(database);
-	PreparedStatement pre = con.prepareStatement(sql);
-	pre.executeUpdate();
-	pre.close();
-	con.close();
-	System.out.println("Truncate ok");
-	
-}
+
+	public void truncateTable(String database, String tableName) throws SQLException {
+		String sql = "TRUNCATE TABLE " + tableName;
+		Connection con = DBConnection.getConnection(database);
+		PreparedStatement pre = con.prepareStatement(sql);
+		pre.executeUpdate();
+		pre.close();
+		con.close();
+		System.out.println("Truncate ok");
+
+	}
+
 // phương thức dùng để tải nội dung trong file csv hoặc txt vào bảng staging
 	private void loadFromCSVOrTXT(String source_file, String delimited, String tableName, int id)
 			throws SQLException, ClassNotFoundException, IOException {
@@ -235,7 +255,7 @@ public void truncateTable(String database,String tableName) throws SQLException 
 
 	public static void main(String[] args) throws SQLException {
 		try {
-			new TranfertoStaging().loadFromSourceFile(1);
+			new TranfertoStaging().loadFromSourceFile(0);
 		} catch (ClassNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
