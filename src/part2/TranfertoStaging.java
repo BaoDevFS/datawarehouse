@@ -2,7 +2,6 @@ package part2;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.sql.Connection;
@@ -11,14 +10,12 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Iterator;
 import java.util.StringTokenizer;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import dao.Handle;
@@ -32,21 +29,24 @@ public class TranfertoStaging {
 	String tableName = "staging";
 
 	// jdbcURL_2 là controldb, jdbcURL_1 là staging database
-	public void loadFromSourceFile() throws ClassNotFoundException, SQLException, IOException {
+	public void loadFromSourceFile(int idConfig) throws ClassNotFoundException, SQLException, IOException {
 		// get logs
 		String dir = "", src, delimited, status;
-		int id = 0;
+		int idFile = 0;
 		//Mở kết nối với controldb
 		Connection connectDB = DBConnection.getConnection("CONTROLDB");
 		//st1 để lấy folder đang lưu các file dữ liệu, st để lấy tên của từng file
 		Statement st1 = connectDB.createStatement();
-		ResultSet rs1 = st1.executeQuery("SELECT * FROM config");
+		ResultSet rs1 = st1.executeQuery("SELECT * FROM config where id="+idConfig);
 		if (rs1.next()) {
 			dir = rs1.getString("download_to_dir_local");
+		}else {
+			System.out.println("Không có bản ghi nào có config id là "+idConfig);
+			return;
 		}
 		System.out.println("Directory: " + dir);
 		Statement st = connectDB.createStatement();
-		ResultSet rs = st.executeQuery("SELECT * FROM logs");
+		ResultSet rs = st.executeQuery("SELECT * FROM logs where id_config="+idConfig);
 
 		// get one row on table
 		while (rs.next()) {
@@ -56,7 +56,7 @@ public class TranfertoStaging {
 			System.out.println(delimited);
 			status = rs.getString("status_file");
 			System.out.println("status là " + status);
-			id = rs.getInt("id");
+			idFile = rs.getInt("id");
 			// nếu status_file là ER thì mới chuyển qua staging
 			if (!status.equalsIgnoreCase("ER"))
 				continue;
@@ -65,7 +65,7 @@ public class TranfertoStaging {
 			if (!f.exists()) {
 				System.out.println("File not exist!");
 				// update status file
-				updateStatus("FILE_NOT_FOUND", id);
+				updateStatus("FILE_NOT_FOUND", idFile);
 				continue;
 			}
 			System.out.println("FileName: " + src
@@ -73,14 +73,14 @@ public class TranfertoStaging {
 			// dựa vào đuôi của file mà chuyển vô staging khác nhau
 			if (src.endsWith("xlsx")) {
 				try {
-					loadFromXSXL(src, tableName, id);
+					loadFromXSXL(src, tableName, idFile);
 				} catch (Exception e) {
 					e.printStackTrace();
 					continue;
 				}
 			} else if (src.endsWith("csv") || src.endsWith("txt")) {
 				try {
-					loadFromCSVOrTXT(src, delimited, tableName, id);
+					loadFromCSVOrTXT(src, delimited, tableName, idFile);
 				} catch (Exception e) {
 					e.printStackTrace();
 					continue;
@@ -88,8 +88,9 @@ public class TranfertoStaging {
 			} else {
 				System.out.println("no method");
 			}
-			Handle.convertDataFromStagingToWasehouse(String.valueOf(id));
-
+			Handle.convertDataFromStagingToWasehouse(String.valueOf(idFile));
+			// sau khi đưa dữ liệu vào warehouse thì truncate bảng staging
+			truncateTable("STAGING", "STAGING");
 		}
 
 	}
@@ -126,7 +127,16 @@ public class TranfertoStaging {
 		pre.close();
 		con.close();
 	}
-
+public void truncateTable(String database,String tableName) throws SQLException {
+	String sql = "TRUNCATE TABLE "+tableName;
+	Connection con = DBConnection.getConnection(database);
+	PreparedStatement pre = con.prepareStatement(sql);
+	pre.executeUpdate();
+	pre.close();
+	con.close();
+	System.out.println("Truncate ok");
+	
+}
 // phương thức dùng để tải nội dung trong file csv hoặc txt vào bảng staging
 	private void loadFromCSVOrTXT(String source_file, String delimited, String tableName, int id)
 			throws SQLException, ClassNotFoundException, IOException {
@@ -193,12 +203,10 @@ public class TranfertoStaging {
 					pre.setString(j + 1, cell.getStringCellValue());
 
 				} catch (IllegalStateException e) {
-					System.out.println(String.valueOf((int) cell.getNumericCellValue()));
 					pre.setString(j + 1, String.valueOf((int) cell.getNumericCellValue()));
 
 				} catch (NullPointerException e) {
 					// nếu bị null pointer thì điền vô staging là rỗng
-					System.out.println("Trống");
 					pre.setString(j + 1, "");
 				}
 			}
@@ -225,9 +233,9 @@ public class TranfertoStaging {
 		System.out.println("Load success");
 	}
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws SQLException {
 		try {
-			new TranfertoStaging().loadFromSourceFile();
+			new TranfertoStaging().loadFromSourceFile(1);
 		} catch (ClassNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
