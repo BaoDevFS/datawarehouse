@@ -11,11 +11,12 @@ public class Logs {
 	
 	//cap nhat du lieu dua vao id
 		public static void updateDataLogs(String id, String status) {
+			try {
 			Connection con = DBConnection.getConnection("CONTROLDB");
 			//update to wasehouse
 			String sql = "update logs set status_file = ?, time_datawarehouse = ? where id = ?";
 			PreparedStatement ps;
-			try {
+			
 				ps = con.prepareStatement(sql);
 				ps.setString(1, status);
 				//khong gioi han thoi gian het han

@@ -30,15 +30,16 @@ public class DBConnection {
 		}
 	}
 
-	public static Connection getConnection(String dbname) {
-		try {
-			
+	public static Connection getConnection(String dbname) throws SQLException {
+			// kiểm tra connection bằng null hay bị đóng kết nối thì tạo lại
 			if (con == null||con.isClosed()) {
 				new DBConnection(dbname);
 				return con;
 			} else {
 				 String url = con.getMetaData().getURL();
-
+				 // kiểm tra cái DB muốn lấy và DB hiện tại có giống nhau
+				 //giống thì trả về con
+				 //khác thì new mới connection theo dbname
 				if (dbname.equals("CONTROLDB") && CONTROLDB.equals(url)) {
 					return con;
 				} else if (dbname.equals("WAREHOUSE") && WAREHOUSE.equals(url)) {
@@ -50,10 +51,7 @@ public class DBConnection {
 					return con;
 				}
 			}
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			return con;
-		}
+		
 	}
 
 	public static void main(String[] args) throws SQLException {
