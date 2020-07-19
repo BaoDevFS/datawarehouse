@@ -2,7 +2,6 @@ package part2;
 
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.sql.Connection;
@@ -11,14 +10,12 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Iterator;
 import java.util.StringTokenizer;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import dao.Handle;
@@ -89,7 +86,8 @@ public class TranfertoStaging {
 				System.out.println("no method");
 			}
 			Handle.convertDataFromStagingToWasehouse(String.valueOf(id));
-
+			// sau khi đưa dữ liệu vào warehouse thì truncate bảng staging
+			truncateTable("STAGING", "STAGING");
 		}
 
 	}
@@ -126,7 +124,16 @@ public class TranfertoStaging {
 		pre.close();
 		con.close();
 	}
-
+public void truncateTable(String database,String tableName) throws SQLException {
+	String sql = "TRUNCATE TABLE "+tableName;
+	Connection con = DBConnection.getConnection(database);
+	PreparedStatement pre = con.prepareStatement(sql);
+	pre.executeUpdate();
+	pre.close();
+	con.close();
+	System.out.println("Truncate ok");
+	
+}
 // phương thức dùng để tải nội dung trong file csv hoặc txt vào bảng staging
 	private void loadFromCSVOrTXT(String source_file, String delimited, String tableName, int id)
 			throws SQLException, ClassNotFoundException, IOException {
@@ -225,19 +232,19 @@ public class TranfertoStaging {
 		System.out.println("Load success");
 	}
 
-	public static void main(String[] args) {
-		try {
-			new TranfertoStaging().loadFromSourceFile();
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+	public static void main(String[] args) throws SQLException {
+//		try {
+//			new TranfertoStaging().loadFromSourceFile();
+//		} catch (ClassNotFoundException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} catch (SQLException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} catch (IOException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
 
 	}
 
