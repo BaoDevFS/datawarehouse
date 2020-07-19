@@ -6,12 +6,13 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 
+import db.DBConnection;
 import model.SinhVien;
 
 public class Staging {
 
 	public static ArrayList<SinhVien> getAllSinhVien() {
-		Connection con = ConnectDB.getConnection();
+		Connection con = DBConnection.getConnection("STAGING");
 
 		ArrayList<SinhVien> stagings = new ArrayList<SinhVien>();
 		String sqlWasehouse = "select * from staging";

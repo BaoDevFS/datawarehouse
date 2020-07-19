@@ -72,7 +72,7 @@ public class CollectData {
 	}
 
 	public void getConfig(int i) throws ClassNotFoundException, SQLException, IOException {
-		Connection connection = DBConnection.getConnection();
+		Connection connection = DBConnection.getConnection("CONTROLDB");
 		String sql = "Select * from config";
 		PreparedStatement pre = connection.prepareStatement(sql);
 		ResultSet rs = pre.executeQuery();

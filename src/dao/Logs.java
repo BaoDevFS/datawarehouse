@@ -4,13 +4,14 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
+import db.DBConnection;
 import model.DataHandle;
 
 public class Logs {
 	
 	//cap nhat du lieu dua vao id
 		public static void updateDataLogs(String id, String status) {
-			Connection con = ConnectDB.getConnection();
+			Connection con = DBConnection.getConnection("CONTROLDB");
 			//update to wasehouse
 			String sql = "update logs set status_file = ?, time_datawarehouse = ? where id = ?";
 			PreparedStatement ps;

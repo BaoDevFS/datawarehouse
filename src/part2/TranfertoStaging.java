@@ -21,6 +21,8 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import db.DBConnection;
+
 public class TranfertoStaging {
 	StringBuffer stb;
 	Row row;
@@ -34,7 +36,7 @@ public class TranfertoStaging {
 		String dir = "", src, delimited, status;
 		int id = 0;
 		//Mở kết nối với controldb
-		Connection connectDB = DBConnection.getConnection(DBConnection.jdbcURL_2);
+		Connection connectDB = DBConnection.getConnection("CONTROLDB");
 		//st1 để lấy folder đang lưu các file dữ liệu, st để lấy tên của từng file
 		Statement st1 = connectDB.createStatement();
 		ResultSet rs1 = st1.executeQuery("SELECT * FROM config");
@@ -94,7 +96,7 @@ public class TranfertoStaging {
 	// status nào đó
 	public void updateStatus(String status, int id) throws ClassNotFoundException, SQLException {
 		String sql = "Update logs set status_file =? where id=?";
-		Connection con = DBConnection.getConnection(DBConnection.jdbcURL_2);
+		Connection con = DBConnection.getConnection("CONTROLDB");
 		PreparedStatement pre = con.prepareStatement(sql);
 		pre.setString(1, status);
 		pre.setInt(2, id);
@@ -109,7 +111,7 @@ public class TranfertoStaging {
 	public void updateFile(int id, int size, int total_row, int staging_load_row)
 			throws SQLException, ClassNotFoundException {
 		String sql = "Update logs set size=?,total_row=?,staging_load_row=?,time_staging=?,status_file=? where id=?";
-		Connection con = DBConnection.getConnection(DBConnection.jdbcURL_2);
+		Connection con = DBConnection.getConnection("CONTROLDB");
 		PreparedStatement pre = con.prepareStatement(sql);
 		pre.setInt(1, size);
 		pre.setInt(2, total_row);
@@ -126,7 +128,7 @@ public class TranfertoStaging {
 // phương thức dùng để tải nội dung trong file csv hoặc txt vào bảng staging
 	private void loadFromCSVOrTXT(String source_file, String delimited, String tableName, int id)
 			throws SQLException, ClassNotFoundException, IOException {
-		Connection connect = DBConnection.getConnection(DBConnection.jdbcURL_1);
+		Connection connect = DBConnection.getConnection("STAGING");
 		// staging_load_row là số dòng đưa vô staging, total_row là tổng số dòng của
 		// file
 		int staging_load_row = 0, total_row = 0;
@@ -165,7 +167,7 @@ public class TranfertoStaging {
 
 	private void loadFromXSXL(String excelFile, String tableName, int id)
 			throws ClassNotFoundException, SQLException, IOException {
-		Connection connect = DBConnection.getConnection(DBConnection.jdbcURL_1);
+		Connection connect = DBConnection.getConnection("STAGING");
 		System.out.println("Connect DB Successfully");
 		int total_row = 0;
 // Mở file
@@ -211,7 +213,7 @@ public class TranfertoStaging {
 	// import data from csv or txt using load data infile
 	private void loadFromCSVOrTXT1(String source_file, String delimited, String tableName)
 			throws ClassNotFoundException, SQLException {
-		Connection connect = DBConnection.getConnection(DBConnection.jdbcURL_1);
+		Connection connect = DBConnection.getConnection("STAGING");
 		System.out.println("Connect DB Successfully");
 		String sql = "LOAD DATA INFILE " + "'" + source_file + "'" + " INTO TABLE " + tableName
 				+ " FIELDS TERMINATED BY '" + delimited + "'" + " IGNORE 1 LINES;";

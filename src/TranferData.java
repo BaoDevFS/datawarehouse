@@ -19,6 +19,8 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import db.DBConnection;
+
 public class TranferData {
 //	String jdbcURL_1 = "jdbc:mysql://localhost/controldb?useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC";
 //	String userName_1 = "root";
@@ -42,7 +44,7 @@ public class TranferData {
 
 	public void loadFromSourceFile() throws ClassNotFoundException, SQLException, IOException {
 		// get config
-		Connection connectDB = DBConnection.getConnection();
+		Connection connectDB = DBConnection.getConnection("CONTROL");
 		System.out.println("c1 ok");
 		Statement st = connectDB.createStatement();
 		ResultSet rs = st.executeQuery("SELECT * FROM config");
@@ -86,7 +88,7 @@ public class TranferData {
 
 	private void loadFromCSVOrTXT(String source_file, String delimited, String tableName, String des_db, String user_sr,
 			String password) throws SQLException, ClassNotFoundException, IOException {
-		Connection connect = DBConnection.getConnection();
+		Connection connect = DBConnection.getConnection("CONTROL");
 		System.out.println("Connect DB Successfully");
 		// check file exits
 		File f = new File(source_file);
@@ -146,7 +148,7 @@ public class TranferData {
 
 	private void loadFromXSXL(String excelFile, String tableName, String des_db, String user_sr, String password)
 			throws ClassNotFoundException, SQLException, IOException {
-		Connection connect = DBConnection.getConnection();
+		Connection connect = DBConnection.getConnection("STAGING");
 		System.out.println("Connect DB Successfully :)");
 		Workbook excel = new XSSFWorkbook(excelFile);
 		sheet = excel.getSheetAt(0);
@@ -243,7 +245,7 @@ public class TranferData {
         workBook.close();
     }
 	public void copyVpro() throws ClassNotFoundException, SQLException {
-		Connection connectDB = DBConnection.getConnection();
+		Connection connectDB = DBConnection.getConnection("STAGING");
 		System.out.println("c1 ok");
 		String sql = "LOAD DATA INFILE 'D:/xampp/mysql/data/datawarehouse/data/Data_17130256.csv' INTO TABLE table2 CHARACTER SET utf8 FIELDS TERMINATED BY ',' IGNORE 1 ROWS(Emp_ID,First_Name,Last_Name,E_Mail,Date_Of_Birth,Salary,Phone_No,City)";
 		PreparedStatement pc = connectDB.prepareStatement(sql);

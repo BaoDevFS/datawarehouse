@@ -8,6 +8,7 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
 
+import db.DBConnection;
 import model.DataHandle;
 import model.SinhVien;
 
@@ -15,7 +16,7 @@ public class Wasehouse {
 	
 	//getAll data wasehouse
 	public static ArrayList<SinhVien> getAllSinhVien(){
-		Connection con = ConnectDB.getConnection();
+		Connection con = DBConnection.getConnection("WAREHOUSE");
 		//get data wasehouse
 				ArrayList<SinhVien> wasehouses = new ArrayList<SinhVien>();
 				String sqlWasehouse = "select * from wasehouse";
@@ -37,7 +38,7 @@ public class Wasehouse {
 	}
 	//cap nhat du lieu dua vao id
 	public static void updateData(String id) {
-		Connection con = ConnectDB.getConnection();
+		Connection con = DBConnection.getConnection("WAREHOUSE");
 		//update to wasehouse
 		String sql = "update wasehouse set expired = ? where id = ?";
 		PreparedStatement ps;
@@ -56,7 +57,7 @@ public class Wasehouse {
 	
 	// insert data wasehouse (1 row)
 	public static void insertData(SinhVien st) {
-		Connection con = ConnectDB.getConnection();
+		Connection con = DBConnection.getConnection("WAREHOUSE");
 		//insert to wasehouse
 		String sql = "insert into wasehouse values(?,?,?,?,?,?,?,?,?,?,?,?,?)";
 		PreparedStatement ps;
