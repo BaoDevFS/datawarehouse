@@ -7,7 +7,7 @@ import java.sql.SQLException;
 public class DBConnection {
 
 	static Connection con;
-	static String WAREHOUSE = "jdbc:mysql://localhost:3306/wasehouse?useUnicode=true&useJDBCCompliantTimezoneShift=true&useLegacyDatetimeCode=false&serverTimezone=UTC";
+	static String WAREHOUSE = "jdbc:mysql://localhost:3306/datawarehouse?useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC";
 	static String CONTROLDB = "jdbc:mysql://localhost/controldb?useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC";
 	static String STAGING = "jdbc:mysql://localhost/staging?useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC";
 	static String username = "root";

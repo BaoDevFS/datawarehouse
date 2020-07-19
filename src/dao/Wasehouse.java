@@ -20,7 +20,7 @@ public class Wasehouse {
 			Connection con = DBConnection.getConnection("WAREHOUSE");
 			// get data wasehouse
 			ArrayList<SinhVien> wasehouses = new ArrayList<SinhVien>();
-			String sqlWasehouse = "select * from wasehouse";
+			String sqlWasehouse = "select * from whsinhvien";
 			Statement statement;
 
 			statement = con.createStatement();
@@ -44,7 +44,7 @@ public class Wasehouse {
 		try {
 			Connection con = DBConnection.getConnection("WAREHOUSE");
 			// update to wasehouse
-			String sql = "update wasehouse set expired = ? where id = ?";
+			String sql = "update whsinhvien set expired = ? where id = ?";
 			PreparedStatement ps;
 
 			ps = con.prepareStatement(sql);
@@ -64,7 +64,7 @@ public class Wasehouse {
 		try {
 			Connection con = DBConnection.getConnection("WAREHOUSE");
 			// insert to wasehouse
-			String sql = "insert into wasehouse values(?,?,?,?,?,?,?,?,?,?,?,?,?)";
+			String sql = "insert into whsinhvien values(?,?,?,?,?,?,?,?,?,?,?,?,?)";
 			PreparedStatement ps;
 
 			ps = con.prepareStatement(sql);

@@ -21,6 +21,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import dao.Handle;
 import db.DBConnection;
 
 public class TranfertoStaging {
@@ -87,6 +88,7 @@ public class TranfertoStaging {
 			} else {
 				System.out.println("no method");
 			}
+			Handle.convertDataFromStagingToWasehouse(String.valueOf(id));
 
 		}
 
