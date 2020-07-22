@@ -8,40 +8,28 @@ public class Handle {
 	
 	//convert data from staging to wasehouse
 	public static void convertDataFromStagingToWasehouse(String idLogs) {
-		
-		//dem tong so phan tu cua staging va wasehouse
-		//neu sau khi convert xog ma thieu bat ki dong du lieu nao thi xuat ra status ER nguoc lai la OK
-		
 		ArrayList<SinhVien> stagings = Staging.getAllSinhVien();
-		ArrayList<SinhVien> wasehouses = Wasehouse.getAllSinhVien();
-		int count = 0;
-		for (SinhVien s : stagings) {
-			for (SinhVien w : wasehouses) {
-				if(!w.expired.equals("9999-12-30")) {
-					count++;
-					continue;
+		SinhVien sv;
+		for (SinhVien sinhVien : stagings) {
+			sv = Wasehouse.getOneSinhVien(sinhVien.mssv);
+			if(sv != null) {
+				if(!isDataDuplicate(sinhVien, sv)) {
+					Wasehouse.updateData(Integer.parseInt(sv.id));
+					Wasehouse.insertData(sinhVien);
 				}
-				if(dataDuplicate(s, w)) {
-					//cap nhat lai thoi gian va tao mot thang moi
-					Wasehouse.updateData(w.id);
-					break;
-				}
+				continue;
+			}else {
+				Wasehouse.insertData(sinhVien);
 			}
-			count++;
-			//update logs
-			if(count == stagings.size()) {
-				Logs.updateDataLogs(idLogs, "OK");
-			}
-			Wasehouse.insertData(s);
-			
 		}
 		
 	}
 	
 	// kiem tra du lieu trung lap
-	public static boolean dataDuplicate(SinhVien a, SinhVien b) {
-		if(a.mssv.equals(b.mssv)) {
-			return true;
+	public static boolean isDataDuplicate(SinhVien s, SinhVien w) {
+			if(s.lastName.equals(w.lastName) && s.firstName.equals(w.firstName) && s.dayBorn.equals(w.dayBorn) && s.classId.equals(w.classId)
+					&& s.className.equals(w.className) && s.phoneNumber.equals(w.phoneNumber) && s.email.equals(w.email) && s.address.equals(w.address) && s.note.equals(w.note)) {
+				return true;
 		}
 		return false;
 	}
