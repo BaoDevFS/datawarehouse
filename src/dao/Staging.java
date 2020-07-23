@@ -13,10 +13,10 @@ public class Staging {
 
 	public static ArrayList<SinhVien> getAllSinhVien() {
 		try {
-			Connection con = DBConnection.getConnection("STAGING");
+			Connection con = DBConnection.getConnection("staging");
 
 			ArrayList<SinhVien> stagings = new ArrayList<SinhVien>();
-			String sqlWasehouse = "select * from staging";
+			String sqlWasehouse = "select * from sinhvien";
 			Statement statement;
 
 			statement = con.createStatement();
@@ -34,6 +34,6 @@ public class Staging {
 	}
 
 	public static void main(String[] args) {
-//		System.out.println(Staging.getAllSinhVien().toString());
+		System.out.println(Staging.getAllSinhVien().toString());
 	}
 }
