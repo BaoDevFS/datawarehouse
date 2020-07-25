@@ -571,7 +571,7 @@ public class CollectData {
 
 	public static void main(String[] args) throws ClassNotFoundException, SQLException, IOException {
 		CollectData collectData = new CollectData();
-		collectData.startTask(3);
+		collectData.startTask(4);
 
 //		collectData.login("http://drive.ecepvn.org:5000/", "guest_access", "123456");
 //		collectData.getMD5File("http://drive.ecepvn.org:5000/", "/ECEP/song.nguyen/DW_2020/data/sinhvien_chieu_nhom16.xlsx");
