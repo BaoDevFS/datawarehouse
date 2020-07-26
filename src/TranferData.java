@@ -1,9 +1,14 @@
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.nio.charset.Charset;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -37,7 +42,8 @@ public class TranferData {
 
 	public static void main(String[] args) throws Exception {
 		TranferData ex = new TranferData();
-		ex.copyVpro();
+//		ex.copyVpro();
+		ex.convertSelectedSheetInXLXSFileToCSV(new File("D:\\xampp\\mysql\\data\\staging\\data\\dangky_chieu_nhom3_2020.xlsx"), 0);
 //		ex.loadFromSourceFile();
 //		convertSelectedSheetInXLXSFileToCSV(new File("D:\\00_HK2_3\\DataWarehouse\\17130010_Datasource_23052020.xlsx"), 0);
 	}
@@ -210,7 +216,8 @@ public class TranferData {
         // Open the xlsx and get the requested sheet from the workbook
         XSSFWorkbook workBook = new XSSFWorkbook(fileInStream);
         XSSFSheet selSheet = workBook.getSheetAt(sheetIdx);
- 
+        BufferedWriter bf = new BufferedWriter(new OutputStreamWriter(new FileOutputStream("D:\\xampp\\mysql\\data\\staging\\data\\"+xlsxFile.getName()+".csv"),Charset.forName("UTF-8")));
+        PrintWriter p = new PrintWriter(new OutputStreamWriter(new FileOutputStream("D:\\xampp\\mysql\\data\\staging\\data\\"+xlsxFile.getName()+".csv"),Charset.forName("UTF-8")),true);
         // Iterate through all the rows in the selected sheet
         Iterator<Row> rowIterator = selSheet.iterator();
         while (rowIterator.hasNext()) {
@@ -223,7 +230,7 @@ public class TranferData {
             while (cellIterator.hasNext()) {
                 Cell cell = cellIterator.next();
                 if (sb.length() != 0) {
-                    sb.append(",");
+                    sb.append("|");
                 }
                 // If you are using poi 4.0 or over, change it to
                 // cell.getCellType
@@ -240,9 +247,10 @@ public class TranferData {
                 default:
                 }
             }
-            System.out.println(sb.toString());
+            p.write(sb.toString()+"\n");
         }
         workBook.close();
+        p.close();
     }
 	public void copyVpro() throws ClassNotFoundException, SQLException {
 		Connection connectDB = DBConnection.getConnection("STAGING");
