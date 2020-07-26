@@ -9,25 +9,68 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class DBConnection {
-
+	static Connection con;
 	static String WAREHOUSE = "jdbc:mysql://localhost:3306/datawarehouse?useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC";
 	static String CONTROLDB = "jdbc:mysql://localhost/controldb?useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC";
 	static String STAGING = "jdbc:mysql://localhost/staging?useUnicode=true&characterEncoding=utf-8&serverTimezone=UTC";
 	static String username = "root";
 	static String password = "";
 
-	public static Connection getConnection(String dbname) {
-		Connection conn;
+	private DBConnection(String dbname) {
 		try {
-			if (dbname.equals("STAGING")) {
-				conn = DriverManager.getConnection(STAGING, username, password);
+			if (dbname.equals("CONTROLDB")) {
+
+				con = DriverManager.getConnection(CONTROLDB, username, password);
 
 			} else if (dbname.equals("WAREHOUSE")) {
-				conn = DriverManager.getConnection(WAREHOUSE, username, password);
+				con = DriverManager.getConnection(WAREHOUSE, username, password);
 			} else {
-				conn = DriverManager.getConnection(CONTROLDB, username, password);
+				con = DriverManager.getConnection(STAGING, username, password);
 			}
-			return conn;
+		} catch (SQLException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+
+	public static Connection getConnection(String dbname) {
+
+//		try {
+//			if (dbname.equals("STAGING")) {
+//				conn = DriverManager.getConnection(STAGING, username, password);
+//
+//			} else if (dbname.equals("WAREHOUSE")) {
+//				conn = DriverManager.getConnection(WAREHOUSE, username, password);
+//			} else {
+//				conn = DriverManager.getConnection(CONTROLDB, username, password);
+//			}
+//			return conn;
+//		} catch (SQLException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//			return null;
+//		}
+		// kiểm tra connection bằng null hay bị đóng kết nối thì tạo lại
+		try {
+			if (con == null || con.isClosed()) {
+				new DBConnection(dbname);
+				return con;
+			} else {
+				String url = con.getMetaData().getURL();
+				// kiểm tra cái DB muốn lấy và DB hiện tại có giống nhau
+				// giống thì trả về con
+				// khác thì new mới connection theo dbname
+				if (dbname.equals("CONTROLDB") && CONTROLDB.equals(url)) {
+					return con;
+				} else if (dbname.equals("WAREHOUSE") && WAREHOUSE.equals(url)) {
+					return con;
+				} else if (dbname.equals("STAGING") && STAGING.equals(url)) {
+					return con;
+				} else {
+					new DBConnection(dbname);
+					return con;
+				}
+			}
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -37,7 +80,7 @@ public class DBConnection {
 	}
 
 	public static void main(String[] args) throws SQLException {
-		
+
 		try {
 			Connection con1 = DBConnection.getConnection("CONTROLDB");
 			Connection con2 = DBConnection.getConnection("STAGING");

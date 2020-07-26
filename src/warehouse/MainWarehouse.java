@@ -7,13 +7,12 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.ZoneId;
 import java.util.Date;
-import java.util.StringTokenizer;
 
 public class MainWarehouse {
 	String tableNameInWarehouseDb, tableNameInStagingDb, field_define_transform, listField, list_colum_datatype;
 	int number_colum;
 	GetDataFromDB get;
-
+	int countRow = 0;
 	public MainWarehouse() {
 		get = new GetDataFromDB();
 	}
@@ -23,10 +22,15 @@ public class MainWarehouse {
 
 			int count = 0;
 			for (int i = 1; i <= number_colum; i++) {
-				System.out.println(rsData.getString(i));
-				System.out.println(rsWareHouse.getObject(i + 1));
-				if (!rsData.getString(i).equals(rsWareHouse.getObject(i + 1))) {
-					count++;
+				try {
+//					System.out.println(rsData.getString(i));
+//					System.out.println(rsWareHouse.getObject(i + 1));
+					if (!rsData.getString(i).equals(rsWareHouse.getObject(i + 1).toString())) {
+						count++;
+					}
+				} catch (NullPointerException e) {
+					e.printStackTrace();
+					continue;
 				}
 			}
 			if (count > 2) {
@@ -43,6 +47,7 @@ public class MainWarehouse {
 	}
 
 	public void tranferStagingToWarehouse(int idLog, int config) {
+		countRow=0;
 		ResultSet rsdata = get.getDataInConfig(config);
 		try {
 			// laays các thuộc tín cần thiết từ config
@@ -57,17 +62,20 @@ public class MainWarehouse {
 			// Kiểm tra table warehouse đã tồn tại hay chưa
 			if (!get.checkTableExits(tableNameInWarehouseDb)) {
 				// chưua tồn tại thì tạo
-				get.createTableWarehouse(tableNameInWarehouseDb, listField, number_colum, list_colum_datatype);
+				if (!get.createTableWarehouse(tableNameInWarehouseDb, listField, number_colum, list_colum_datatype)) {
+					return;
+				}
 			}
+			get.doSpecialTaskInLog(idLog);
 			// get data từ satginglen
 			rsdata = get.getDataStagingFromDb(tableNameInStagingDb);
 			// duyệt từng dòng
 			while (rsdata.next()) {
 				// kiểm tra số lượng cột trong hàng
 				// không đủ thì bỏ qua
-				if (!check_Colum_In_Row(rsdata)) {
-					continue;
-				}
+//				if (!check_Colum_In_Row(rsdata)) {
+//					continue;
+//				}
 				// get dữ liệu từ bảng warehouse
 				ResultSet rsWarehouse = get.getDataFromWarehouse(tableNameInWarehouseDb, field_define_transform, "=",
 						rsdata.getString(field_define_transform));
@@ -79,7 +87,7 @@ public class MainWarehouse {
 					} else {
 //						System.out.println("sadasdasd");
 //						// cap expired la ngay hien tai 
-						get.updateExpiredInWareHouse(tableNameInWarehouseDb, rsWarehouse.getInt(1));
+						get.updateExpiredInWareHouse(tableNameInWarehouseDb, rsWarehouse.getInt(1),"now()");
 						insertRowToWarehouse(pre, rsdata);
 					}
 				} else {
@@ -87,29 +95,62 @@ public class MainWarehouse {
 					insertRowToWarehouse(pre, rsdata);
 				}
 			}
+			get.updateStatus("OK WH", idLog, countRow);
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
 
 	}
-
+	
 	private void insertRowToWarehouse(PreparedStatement pre, ResultSet rsdata) {
 		String[] artoken = list_colum_datatype.split("\\|");
 		// set data theo kieeur dữ liệu vào
 		int i = 1;
 		try {
+			String token;
 			for (; i <= number_colum; i++) {
-				if (artoken[i - 1].contains("VARCHAR")) {
+				token = artoken[i - 1];
+				// kiểm tra kiểu dữ liệu của field
+				if (token.startsWith("VARCHAR")) {
 					pre.setString(i, rsdata.getString(i));
-				} else if (artoken[i - 1].contains("INT")) {
-					try {
-						pre.setInt(i, Integer.parseInt(rsdata.getString(i)));
-					} catch (NumberFormatException e) {
-						pre.setInt(i, 0);
-						continue;
+				} else if (token.startsWith("INT")) {
+					if (!token.contains("#")) {
+						try {
+							pre.setInt(i, Integer.parseInt(rsdata.getString(i)));
+						} catch (NumberFormatException e) {
+							pre.setInt(i, 0);
+							continue;
+						}
+					} else {
+						String[] tk = token.split("#");
+//						System.out.println(tk[3]);
+//						System.out.println(tk[2]);
+//						System.out.println(tk[1]);
+//						System.out.println(tk[0]);
+						if (tk[3].equals("VARCHAR")) {
+							int id = get.getIdFormTableInWarehouse(tk[1], tk[2], rsdata.getString(i));
+							pre.setInt(i, id);
+						} else if (tk[3].equals("INT")) {
+							int id = get.getIdFormTableInWarehouse(tk[1], tk[2], rsdata.getString(i));
+							pre.setInt(i, id);
+						} else if (tk[3].equals("DATE")) {
+							Date date = tranferDate(1, rsdata.getString(i));
+							try {
+								if (date == null) {
+									pre.setInt(i, Integer.parseInt(rsdata.getString(i)));
+									continue;
+								}
+							} catch (NumberFormatException e) {
+								pre.setInt(i, 0);
+							}
+							int id = get.getIdFormTableInWarehouse(tk[1], tk[2],
+									date.toInstant().atZone(ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDate().toString());
+							pre.setInt(i, id);
+						}
 					}
-				} else if (artoken[i - 1].contains("DATE")) {
+
+				} else if (token.startsWith("DATE")) {
 					Date date = tranferDate(1, rsdata.getString(i));
 					if (date == null) {
 						pre.setDate(i, new java.sql.Date(0000, 00, 00));
@@ -121,6 +162,7 @@ public class MainWarehouse {
 			}
 			pre.setDate(i, new java.sql.Date(9999 - 1900, 11, 31));
 			pre.executeUpdate();
+			countRow++;
 		} catch (SQLException e) {
 			e.printStackTrace();
 		}
@@ -151,7 +193,21 @@ public class MainWarehouse {
 			}
 		case 4:
 			try {
+				Date date1 = new SimpleDateFormat("yyyy-MM-dd").parse(data);
+				return date1;
+			} catch (ParseException e) {
+				return tranferDate(5, data);
+			}
+		case 5:
+			try {
 				Date date1 = new SimpleDateFormat("dd-MM-yyyy").parse(data);
+				return date1;
+			} catch (ParseException e) {
+				return tranferDate(6, data);
+			}
+		case 6:
+			try {
+				Date date1 = new SimpleDateFormat("MM-dd-yyyy").parse(data);
 				return date1;
 			} catch (ParseException e) {
 				return null;
@@ -165,9 +221,9 @@ public class MainWarehouse {
 	private boolean check_Colum_In_Row(ResultSet rs) {
 		try {
 			String tmp;
-			for (int i = 1; i < 11; i++) {
+			for (int i = 1; i < number_colum; i++) {
 				tmp = rs.getString(i);
-				if (tmp.equals("") || tmp == null)
+				if (tmp == null || tmp.equals(""))
 					return false;
 			}
 			return true;
@@ -179,6 +235,10 @@ public class MainWarehouse {
 
 	public static void main(String[] args) {
 		MainWarehouse main = new MainWarehouse();
-		main.tranferStagingToWarehouse(89, 1);
+//		Date date = main.tranferDate(1, "30-12-2019");
+//		System.out.println(date.toInstant().atZone(ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDate().toString());
+
+//		main.tranferStagingToWarehouse(89, 1);
+		main.tranferStagingToWarehouse(119, 2);
 	}
 }
