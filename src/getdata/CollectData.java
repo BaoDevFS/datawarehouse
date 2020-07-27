@@ -46,7 +46,7 @@ public class CollectData {
 	private String urlListFile = "/webapi/entry.cgi";
 	private String sid = "";
 	private int id;
-	private String from_folder, download_to_dir_local, file_format_start_with,file_format_define_group;
+	private String from_folder, download_to_dir_local, file_format_start_with, file_format_define_group;
 	private Timer timer;
 	SendMail sendMail;
 	ArrayList<String> listPathFile;
@@ -178,11 +178,13 @@ public class CollectData {
 	private int getGroupID(String name) {
 		String id;
 		try {
-			id = name.substring(name.lastIndexOf(file_format_define_group) - 2, name.lastIndexOf(file_format_define_group));
+			id = name.substring(name.lastIndexOf(file_format_define_group) - 2,
+					name.lastIndexOf(file_format_define_group));
 			return Integer.parseInt(id);
 		} catch (NumberFormatException e) {
 			try {
-				id = name.substring(name.lastIndexOf(file_format_define_group) - 1, name.lastIndexOf(file_format_define_group));
+				id = name.substring(name.lastIndexOf(file_format_define_group) - 1,
+						name.lastIndexOf(file_format_define_group));
 				return Integer.parseInt(id);
 			} catch (NumberFormatException es) {
 				throw es;

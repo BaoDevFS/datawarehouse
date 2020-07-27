@@ -239,6 +239,8 @@ public class MainWarehouse {
 //		System.out.println(date.toInstant().atZone(ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDate().toString());
 
 //		main.tranferStagingToWarehouse(89, 1);
-		main.tranferStagingToWarehouse(119, 2);
+		for (int i = 14; i < 37; i++) {
+			main.tranferStagingToWarehouse(i, 3);
+		}
 	}
 }
