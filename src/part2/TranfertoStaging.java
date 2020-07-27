@@ -109,7 +109,9 @@ public class TranfertoStaging {
 			} else {
 				System.out.println("no method");
 			}
+
 //			Handle.convertDataFromStagingToWasehouse(String.valueOf(idFile));
+
 			// sau khi đưa dữ liệu vào warehouse thì truncate bảng staging
 //			truncateTable("STAGING", file_format_start_with);
 		}
@@ -317,7 +319,9 @@ public class TranfertoStaging {
 
 	public static void main(String[] args) throws SQLException {
 		try {
+
 			new TranfertoStaging().loadFromSourceFile(1);
+
 		} catch (ClassNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
