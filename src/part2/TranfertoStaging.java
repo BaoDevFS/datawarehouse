@@ -50,7 +50,7 @@ public class TranfertoStaging {
 	// jdbcURL_2 là controldb, jdbcURL_1 là staging database
 	public void loadFromSourceFile(int idConfig) throws ClassNotFoundException, SQLException, IOException {
 		// get logs
-		String dir = "", src, delimited, status, file_format_start_with = "";
+		String dir = "", src, delimited, status, file_format_start_with = "",tableName="";
 		int idFile = 0;
 		// Mở kết nối với controldb
 		Connection connectDB = DBConnection.getConnection("CONTROLDB");
@@ -60,6 +60,7 @@ public class TranfertoStaging {
 		if (rs1.next()) {
 			dir = rs1.getString("download_to_dir_local");
 			file_format_start_with = rs1.getString("file_format_start_with");
+			tableName= rs1.getString("table_name_staging");
 		} else {
 			System.out.println("Không có bản ghi nào có config id là " + idConfig);
 			return;
@@ -94,14 +95,14 @@ public class TranfertoStaging {
 			// dựa vào đuôi của file mà chuyển vô staging khác nhau
 			if (src.endsWith("xlsx")) {
 				try {
-					loadFromXSXL(src, file_format_start_with, idFile);
+					loadFromXSXL(src, file_format_start_with,tableName, idFile);
 				} catch (Exception e) {
 					e.printStackTrace();
 					continue;
 				}
 			} else if (src.endsWith("csv") || src.endsWith("txt")) {
 				try {
-					loadFromCSVOrTXT(src, delimited, file_format_start_with, idFile);
+					loadFromCSVOrTXT(src, delimited, file_format_start_with,tableName, idFile);
 				} catch (Exception e) {
 					e.printStackTrace();
 					continue;
@@ -205,7 +206,7 @@ public class TranfertoStaging {
 	}
 
 // phương thức dùng để tải nội dung trong file csv hoặc txt vào bảng staging
-	private void loadFromCSVOrTXT(String source_file, String delimited, String tableName, int id)
+	private void loadFromCSVOrTXT(String source_file, String delimited,String file_format_start_with, String tableName, int id)
 			throws SQLException, ClassNotFoundException, IOException {
 		System.out.println("TẢI FILE TXT");
 		// staging_load_row là số dòng đưa vô staging, total_row là tổng số dòng của
@@ -215,17 +216,17 @@ public class TranfertoStaging {
 		File f = new File(source_file);
 		StringTokenizer token = null;
 
-		if (tableName.equalsIgnoreCase("sinhvien")) {
-			token = new StringTokenizer(loadFile(f, "sinhvien", delimited, 11), "-");
+		if (file_format_start_with.equalsIgnoreCase("sinhvien")) {
+			token = new StringTokenizer(loadFile(f, tableName, delimited, 11), "-");
 
-		} else if (tableName.equalsIgnoreCase("lophoc")) {
-			token = new StringTokenizer(loadFile(f, "lophoc", delimited, 4), "-");
+		} else if (file_format_start_with.equalsIgnoreCase("lophoc")) {
+			token = new StringTokenizer(loadFile(f, tableName, delimited, 4), "-");
 
-		} else if (tableName.equalsIgnoreCase("dangky")) {
-			token = new StringTokenizer(loadFile(f, "dangky", delimited, 5), "-");
+		} else if (file_format_start_with.equalsIgnoreCase("dangky")) {
+			token = new StringTokenizer(loadFile(f, tableName, delimited, 5), "-");
 
-		} else if (tableName.equalsIgnoreCase("Monhoc")) {
-			token = new StringTokenizer(loadFile(f, "monhoc", delimited, 7), "-");
+		} else if (file_format_start_with.equalsIgnoreCase("Monhoc")) {
+			token = new StringTokenizer(loadFile(f, tableName, delimited, 7), "-");
 
 		}
 		total_row = Integer.parseInt(token.nextToken());
@@ -283,20 +284,20 @@ public class TranfertoStaging {
 		return i - 1;
 	}
 
-	private void loadFromXSXL(String excelFile, String tableName, int id)
+	private void loadFromXSXL(String excelFile,String file_format_start_with, String tableName, int id)
 			throws ClassNotFoundException, SQLException, IOException, InvalidFormatException {
 		int total_row = 0;
 		System.out.println("TẢI FILE XSXL");
 // Mở file
 		File f = new File(excelFile);
-		if (tableName.equalsIgnoreCase("sinhvien")) {
-			total_row = loadFileXSXL(f, "sinhvien", 11);
-		} else if (tableName.equalsIgnoreCase("lophoc")) {
-			total_row = loadFileXSXL(f, "lophoc", 4);
-		} else if (tableName.equalsIgnoreCase("dangky")) {
-			total_row = loadFileXSXL(f, "dangky", 5);
-		} else if (tableName.equalsIgnoreCase("Monhoc")) {
-			total_row = loadFileXSXL(f, "monhoc", 7);
+		if (file_format_start_with.equalsIgnoreCase("sinhvien")) {
+			total_row = loadFileXSXL(f,tableName, 11);
+		} else if (file_format_start_with.equalsIgnoreCase("lophoc")) {
+			total_row = loadFileXSXL(f, tableName, 4);
+		} else if (file_format_start_with.equalsIgnoreCase("dangky")) {
+			total_row = loadFileXSXL(f, tableName, 5);
+		} else if (file_format_start_with.equalsIgnoreCase("Monhoc")) {
+			total_row = loadFileXSXL(f, tableName, 7);
 		}
 
 		// đọc xong 1 file, cập nhật lại các field của trong logs
@@ -320,7 +321,7 @@ public class TranfertoStaging {
 	public static void main(String[] args) throws SQLException {
 		try {
 
-			new TranfertoStaging().loadFromSourceFile(1);
+			new TranfertoStaging().loadFromSourceFile(4);
 
 		} catch (ClassNotFoundException e) {
 			// TODO Auto-generated catch block
