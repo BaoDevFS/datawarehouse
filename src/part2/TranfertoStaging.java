@@ -23,6 +23,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import dao.Handle;
 import db.DBConnection;
+import warehouse.MainWarehouse;
 
 public class TranfertoStaging {
 	StringBuffer stb;
@@ -31,7 +32,8 @@ public class TranfertoStaging {
 	Sheet sheet;
 	String tableName = "staging";
 	private Timer timer;
-
+	int numOfField;
+	MainWarehouse mainWarehouse = new MainWarehouse();
 	public void startTask(int idRowConfig) {
 		timer = new Timer();
 		TimerTask timerTask = new TimerTask() {
@@ -61,6 +63,7 @@ public class TranfertoStaging {
 			dir = rs1.getString("download_to_dir_local");
 			file_format_start_with = rs1.getString("file_format_start_with");
 			tableName= rs1.getString("table_name_staging");
+			numOfField = rs1.getInt("number_column");
 		} else {
 			System.out.println("Không có bản ghi nào có config id là " + idConfig);
 			return;
@@ -95,14 +98,14 @@ public class TranfertoStaging {
 			// dựa vào đuôi của file mà chuyển vô staging khác nhau
 			if (src.endsWith("xlsx")) {
 				try {
-					loadFromXSXL(src, file_format_start_with,tableName, idFile);
+					loadFromXSXL(src, file_format_start_with,tableName,numOfField, idFile);
 				} catch (Exception e) {
 					e.printStackTrace();
 					continue;
 				}
 			} else if (src.endsWith("csv") || src.endsWith("txt")) {
 				try {
-					loadFromCSVOrTXT(src, delimited, file_format_start_with,tableName, idFile);
+					loadFromCSVOrTXT(src, delimited, file_format_start_with,tableName,numOfField, idFile);
 				} catch (Exception e) {
 					e.printStackTrace();
 					continue;
@@ -112,9 +115,11 @@ public class TranfertoStaging {
 			}
 
 //			Handle.convertDataFromStagingToWasehouse(String.valueOf(idFile));
-
+			System.out.println(idFile);
+			System.out.println(idConfig);
+			mainWarehouse.tranferStagingToWarehouse(idFile, idConfig);
 			// sau khi đưa dữ liệu vào warehouse thì truncate bảng staging
-//			truncateTable("STAGING", file_format_start_with);
+			truncateTable("STAGING", tableName);
 		}
 
 	}
@@ -184,17 +189,17 @@ public class TranfertoStaging {
 		// xử lý các dòng còn lại trong file
 		while ((lineText = lineReader.readLine()) != null) {
 			total_row++;
-			System.out.println("lineText: " + lineText);
+//			System.out.println("lineText: " + lineText);
 			// tách dòng theo delimit
 			StringTokenizer st = new StringTokenizer(lineText, delimited);
-			System.out.println("Count token: " + st.countTokens());
+//			System.out.println("Count token: " + st.countTokens());
 			int i = 0;
 			// dòng không đủ field thì không đưa vô staging, đọc dòng tiếp theo, đủ field
 			// thì đưa vô staging
 			if (st.countTokens() == numberOfField) {
 				while (st.hasMoreTokens()) {
 					String tken = st.nextToken();
-					System.out.println(tken);
+//					System.out.println(tken);
 					pre.setString(++i, (tken));
 				}
 				pre.execute();
@@ -206,7 +211,7 @@ public class TranfertoStaging {
 	}
 
 // phương thức dùng để tải nội dung trong file csv hoặc txt vào bảng staging
-	private void loadFromCSVOrTXT(String source_file, String delimited,String file_format_start_with, String tableName, int id)
+	private void loadFromCSVOrTXT(String source_file, String delimited,String file_format_start_with, String tableName,int numOfField, int id)
 			throws SQLException, ClassNotFoundException, IOException {
 		System.out.println("TẢI FILE TXT");
 		// staging_load_row là số dòng đưa vô staging, total_row là tổng số dòng của
@@ -217,16 +222,16 @@ public class TranfertoStaging {
 		StringTokenizer token = null;
 
 		if (file_format_start_with.equalsIgnoreCase("sinhvien")) {
-			token = new StringTokenizer(loadFile(f, tableName, delimited, 11), "-");
+			token = new StringTokenizer(loadFile(f, tableName, delimited, numOfField), "-");
 
 		} else if (file_format_start_with.equalsIgnoreCase("lophoc")) {
-			token = new StringTokenizer(loadFile(f, tableName, delimited, 4), "-");
+			token = new StringTokenizer(loadFile(f, tableName, delimited, numOfField), "-");
 
 		} else if (file_format_start_with.equalsIgnoreCase("dangky")) {
-			token = new StringTokenizer(loadFile(f, tableName, delimited, 5), "-");
+			token = new StringTokenizer(loadFile(f, tableName, delimited, numOfField), "-");
 
 		} else if (file_format_start_with.equalsIgnoreCase("Monhoc")) {
-			token = new StringTokenizer(loadFile(f, tableName, delimited, 7), "-");
+			token = new StringTokenizer(loadFile(f, tableName, delimited, numOfField), "-");
 
 		}
 		total_row = Integer.parseInt(token.nextToken());
@@ -265,7 +270,7 @@ public class TranfertoStaging {
 				cell = row.getCell(j);
 
 				try {
-					System.out.println(cell.getStringCellValue());
+//					System.out.println(cell.getStringCellValue());
 					pre.setString(j + 1, cell.getStringCellValue());
 
 				} catch (IllegalStateException e) {
@@ -284,20 +289,20 @@ public class TranfertoStaging {
 		return i - 1;
 	}
 
-	private void loadFromXSXL(String excelFile,String file_format_start_with, String tableName, int id)
+	private void loadFromXSXL(String excelFile,String file_format_start_with, String tableName,int numOfField, int id)
 			throws ClassNotFoundException, SQLException, IOException, InvalidFormatException {
 		int total_row = 0;
 		System.out.println("TẢI FILE XSXL");
 // Mở file
 		File f = new File(excelFile);
 		if (file_format_start_with.equalsIgnoreCase("sinhvien")) {
-			total_row = loadFileXSXL(f,tableName, 11);
+			total_row = loadFileXSXL(f,tableName, numOfField);
 		} else if (file_format_start_with.equalsIgnoreCase("lophoc")) {
-			total_row = loadFileXSXL(f, tableName, 4);
+			total_row = loadFileXSXL(f, tableName, numOfField);
 		} else if (file_format_start_with.equalsIgnoreCase("dangky")) {
-			total_row = loadFileXSXL(f, tableName, 5);
+			total_row = loadFileXSXL(f, tableName, numOfField);
 		} else if (file_format_start_with.equalsIgnoreCase("Monhoc")) {
-			total_row = loadFileXSXL(f, tableName, 7);
+			total_row = loadFileXSXL(f, tableName, numOfField);
 		}
 
 		// đọc xong 1 file, cập nhật lại các field của trong logs
@@ -319,20 +324,21 @@ public class TranfertoStaging {
 	}
 
 	public static void main(String[] args) throws SQLException {
-		try {
+//		try {
 
-			new TranfertoStaging().loadFromSourceFile(4);
+//			new TranfertoStaging().loadFromSourceFile(1);
+			new TranfertoStaging().startTask(3);
 
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (IOException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+//		} catch (ClassNotFoundException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} catch (SQLException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		} catch (IOException e) {
+//			// TODO Auto-generated catch block
+//			e.printStackTrace();
+//		}
 
 	}
 

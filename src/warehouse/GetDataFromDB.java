@@ -4,6 +4,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.ZoneId;
+import java.util.Date;
 import java.util.StringTokenizer;
 
 import org.apache.poi.ss.formula.functions.Vlookup;
@@ -13,15 +15,18 @@ import mail.SendMail;
 
 public class GetDataFromDB {
 	SendMail send;
-
+	Connection connectionControl,connectionStaging,connectionWarehouse;
 	public GetDataFromDB() {
 		send = new SendMail();
+		connectionControl=DBConnection.getConnection("CONTROLDB");
+		connectionStaging =DBConnection.getConnection("STAGING");
+		connectionWarehouse = DBConnection.getConnection("WAREHOUSE");
 	}
 	public void doSpecialTaskInLog(int idLog) {
-		Connection con = DBConnection.getConnection("CONTROLDB");
+//		Connection connectionControl = DBConnection.getConnection("CONTROLDB");
 		try {
 			String sql = "Select sql_for_special_task from logs where id =?";
-			PreparedStatement pre = con.prepareStatement(sql);
+			PreparedStatement pre = connectionControl.prepareStatement(sql);
 			pre.setInt(1, idLog);
 			ResultSet rs = pre.executeQuery();
 			if(rs.next()) {
@@ -33,9 +38,9 @@ public class GetDataFromDB {
 				System.out.println(ar[0]);
 				System.out.println(ar[1]);
 				rs.close();
-				con.close();
-				con = DBConnection.getConnection(ar[0]);
-				pre = con.prepareStatement(ar[1]);
+				connectionControl.close();
+				connectionControl = DBConnection.getConnection(ar[0]);
+				pre = connectionControl.prepareStatement(ar[1]);
 				pre.executeUpdate();
 			}
 		}catch (SQLException e) {
@@ -45,9 +50,9 @@ public class GetDataFromDB {
 	}
 	public ResultSet getDataInConfig(int id) {
 		try {
-			Connection con = DBConnection.getConnection("CONTROLDB");
+//			Connection connectionControl = DBConnection.getConnection("CONTROLDB");
 			String sql = "Select * from config where id=?";
-			PreparedStatement pre = con.prepareStatement(sql);
+			PreparedStatement pre = connectionControl.prepareStatement(sql);
 			pre.setInt(1, id);
 			ResultSet rs = pre.executeQuery();
 			return rs;
@@ -105,6 +110,7 @@ public class GetDataFromDB {
 			sb.append(" ( id INT(11) AUTO_INCREMENT PRIMARY KEY, ");
 			while (stklist.hasMoreTokens() && stkDatatype.hasMoreElements()) {
 				sb.append(stklist.nextToken());
+				// cắt kiểu dữ liệu trong trường hợp chứa dữ liệu để tranform khác #
 				sb.append(" " + cutField(stkDatatype.nextToken()));
 				sb.append(", ");
 			}
@@ -124,6 +130,7 @@ public class GetDataFromDB {
 		Connection con = DBConnection.getConnection("WAREHOUSE");
 		String sql;
 		try {
+			// warehouse datedim không có trường expired
 			if(tableName.equals("datedim")) {
 				sql="Select id from " + tableName + " where " + field +  " = '" + value+"'";
 			}else {
@@ -158,7 +165,8 @@ public class GetDataFromDB {
 		}
 	}
 
-	public PreparedStatement intsertDataToWarehouse(String tableNameInWarehouse, String listfield, int number_colum) {
+	public void intsertDataToWarehouse(String tableNameInWarehouse, String listfield, int number_colum, ResultSet rsdata,String list_colum_datatype,int countRow ) {
+		countRow=0;
 		try {
 			StringTokenizer stk = new StringTokenizer(listfield, "|");
 
@@ -178,12 +186,73 @@ public class GetDataFromDB {
 				sb.append("?, ");
 			}
 			sb.append("?)");
-			return con.prepareStatement(sb.toString());
+			PreparedStatement pre = con.prepareStatement(sb.toString());
+			String[] artoken = list_colum_datatype.split("\\|");
+			// set data theo kieeur dữ liệu vào
+			int i = 1;
+			try {
+				String token;
+				int tmp;
+				for (; i <= number_colum; i++) {
+					token = artoken[i - 1];
+					// kiểm tra kiểu dữ liệu của field
+					if (token.startsWith("VARCHAR")) {
+						pre.setString(i, rsdata.getString(i));
+					} else if (token.startsWith("INT")) {
+						if (!token.contains("#")) {
+							try {
+								tmp = Integer.parseInt(rsdata.getString(i));
+								pre.setInt(i, tmp);
+							} catch (NumberFormatException e) {
+								pre.setInt(i, 0);
+								continue;
+							}
+						} else {
+							// cat cac thuc tinh dang sau
+							String[] tk = token.split("#");
+							if (tk[3].equals("VARCHAR")) {
+								int id = getIdFormTableInWarehouse(tk[1], tk[2], rsdata.getString(i));
+								pre.setInt(i, id);
+							} else if (tk[3].equals("INT")) {
+								int id = getIdFormTableInWarehouse(tk[1], tk[2], rsdata.getString(i));
+								pre.setInt(i, id);
+							} else if (tk[3].equals("DATE")) {
+								Date date = MainWarehouse.tranferDate(1, rsdata.getString(i));
+								try {
+									if (date == null) {
+										tmp =Integer.parseInt(rsdata.getString(i));
+										pre.setInt(i, tmp);
+										continue;
+									}
+								} catch (NumberFormatException e) {
+									pre.setInt(i, 0);
+									continue;
+								}
+								int id = getIdFormTableInWarehouse(tk[1], tk[2],
+										date.toInstant().atZone(ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDate().toString());
+								pre.setInt(i, id);
+							}
+						}
 
+					} else if (token.startsWith("DATE")) {
+						Date date = MainWarehouse.tranferDate(1, rsdata.getString(i));
+						if (date == null) {
+							pre.setDate(i, new java.sql.Date(0000, 00, 00));
+							continue;
+						}
+						pre.setObject(i, date.toInstant().atZone(ZoneId.of("Asia/Ho_Chi_Minh")).toLocalDate());
+					}
+					// cos the them cac du lieu khac
+				}
+				pre.setDate(i, new java.sql.Date(9999 - 1900, 11, 31));
+				pre.executeUpdate();
+				countRow++;
+			} catch (SQLException e) {
+				e.printStackTrace();
+			}
 		} catch (SQLException e) {
 			e.printStackTrace();
 			send.sendEmail(e.toString(), "nguyennhubao999@gmail.com", "Lỗi kết nối STAGING");
-			return null;
 		}
 	}
 
