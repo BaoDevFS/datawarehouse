@@ -76,7 +76,7 @@ public class CollectData {
 		String sql = "Select * from config where id =" + i;
 		PreparedStatement pre = connection.prepareStatement(sql);
 		ResultSet rs = pre.executeQuery();
-		while (rs.next()) {
+		if (rs.next()) {
 			System.out.println("Start tanks");
 			id = rs.getInt("id");
 			System.out.println("id: " + id);
@@ -99,13 +99,12 @@ public class CollectData {
 				getListFile(connection, host, from_folder, download_to_dir_local);
 				checkStatusFileInSystem(connection, host, from_folder, download_to_dir_local);
 			} else {
-				System.out.println("Login Success");
+				System.out.println("Login Fail");
 				sendMail.sendEmail("Login fail", "Nguyennhubao999@gmail.com", "Login Fail");
 			}
 			rs.close();
 			connection.close();
 			System.out.println("End tanks");
-			break;
 		}
 
 	}
