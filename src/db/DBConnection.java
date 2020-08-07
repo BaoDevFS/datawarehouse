@@ -83,12 +83,14 @@ public class DBConnection {
 
 		try {
 			Connection con1 = DBConnection.getConnection("CONTROLDB");
-			Connection con2 = DBConnection.getConnection("STAGING");
+//			Connection con2 = DBConnection.getConnection("STAGING");
 			String sql = "Select * from config";
 			PreparedStatement pre = con1.prepareStatement(sql);
 			ResultSet rs = pre.executeQuery();
+			rs.close();
+			Connection con2 = DBConnection.getConnection("CONTROLDB");
 			//
-			String sql2 = "Select * from staging";
+			String sql2 = "Select * from config";
 			PreparedStatement pre2 = con2.prepareStatement(sql2);
 			ResultSet rs2 = pre2.executeQuery();
 

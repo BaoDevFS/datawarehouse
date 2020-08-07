@@ -46,7 +46,7 @@ public class CollectData {
 	private String urlListFile = "/webapi/entry.cgi";
 	private String sid = "";
 	private int id;
-	private String from_folder, download_to_dir_local, file_format_start_with,file_format_define_group;
+	private String from_folder, download_to_dir_local, file_format_start_with, file_format_define_group;
 	private Timer timer;
 	SendMail sendMail;
 	ArrayList<String> listPathFile;
@@ -76,7 +76,7 @@ public class CollectData {
 		String sql = "Select * from config where id =" + i;
 		PreparedStatement pre = connection.prepareStatement(sql);
 		ResultSet rs = pre.executeQuery();
-		while (rs.next()) {
+		if (rs.next()) {
 			System.out.println("Start tanks");
 			id = rs.getInt("id");
 			System.out.println("id: " + id);
@@ -99,13 +99,12 @@ public class CollectData {
 				getListFile(connection, host, from_folder, download_to_dir_local);
 				checkStatusFileInSystem(connection, host, from_folder, download_to_dir_local);
 			} else {
-				System.out.println("Login Success");
+				System.out.println("Login Fail");
 				sendMail.sendEmail("Login fail", "Nguyennhubao999@gmail.com", "Login Fail");
 			}
 			rs.close();
 			connection.close();
 			System.out.println("End tanks");
-			break;
 		}
 
 	}
@@ -178,11 +177,13 @@ public class CollectData {
 	private int getGroupID(String name) {
 		String id;
 		try {
-			id = name.substring(name.lastIndexOf(file_format_define_group) - 2, name.lastIndexOf(file_format_define_group));
+			id = name.substring(name.lastIndexOf(file_format_define_group) - 2,
+					name.lastIndexOf(file_format_define_group));
 			return Integer.parseInt(id);
 		} catch (NumberFormatException e) {
 			try {
-				id = name.substring(name.lastIndexOf(file_format_define_group) - 1, name.lastIndexOf(file_format_define_group));
+				id = name.substring(name.lastIndexOf(file_format_define_group) - 1,
+						name.lastIndexOf(file_format_define_group));
 				return Integer.parseInt(id);
 			} catch (NumberFormatException es) {
 				throw es;
@@ -571,7 +572,7 @@ public class CollectData {
 
 	public static void main(String[] args) throws ClassNotFoundException, SQLException, IOException {
 		CollectData collectData = new CollectData();
-		collectData.startTask(4);
+		collectData.startTask(3);
 
 //		collectData.login("http://drive.ecepvn.org:5000/", "guest_access", "123456");
 //		collectData.getMD5File("http://drive.ecepvn.org:5000/", "/ECEP/song.nguyen/DW_2020/data/sinhvien_chieu_nhom16.xlsx");
