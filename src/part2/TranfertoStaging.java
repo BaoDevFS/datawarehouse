@@ -29,7 +29,7 @@ public class TranfertoStaging {
 	Row row;
 	Cell cell;
 	Sheet sheet;
-	String tableName = "staging";
+	
 	private Timer timer;
 
 	public void startTask(int idRowConfig) {
@@ -46,77 +46,79 @@ public class TranfertoStaging {
 		};
 		timer.schedule(timerTask, 0, 1 * 60 * 1000);
 	}
-
-	// jdbcURL_2 là controldb, jdbcURL_1 là staging database
+	
 	public void loadFromSourceFile(int idConfig) throws ClassNotFoundException, SQLException, IOException {
-		// get logs
-		String dir = "", src, delimited, status, file_format_start_with = "",tableName="";
+		String filePath, delimited, table_name_staging = "",list_field_name="",sql = "";
 		int idFile = 0;
 		// Mở kết nối với controldb
 		Connection connectDB = DBConnection.getConnection("CONTROLDB");
-		// st1 để lấy folder đang lưu các file dữ liệu, st để lấy tên của từng file
-		Statement st1 = connectDB.createStatement();
-		ResultSet rs1 = st1.executeQuery("SELECT * FROM config where id=" + idConfig);
-		if (rs1.next()) {
-			dir = rs1.getString("download_to_dir_local");
-			file_format_start_with = rs1.getString("file_format_start_with");
-			tableName= rs1.getString("table_name_staging");
-		} else {
-			System.out.println("Không có bản ghi nào có config id là " + idConfig);
-			return;
-		}
-		System.out.println("Directory: " + dir);
-		Statement st = connectDB.createStatement();
-		ResultSet rs = st.executeQuery("SELECT * FROM logs where id_config=" + idConfig);
-
-		// get one row on table
-		while (rs.next()) {
-			src = dir + rs.getString("filename");
-			System.out.println(src);
+		// chọn ra tất cả các bản ghi có id_config truyền vào và status là ER
+		sql = "SELECT * FROM config c JOIN logs l on c.id = l.id_config where c.id=? AND l.status_file=?";
+		PreparedStatement pre = connectDB.prepareStatement(sql);
+		pre.setInt(1, idConfig);
+		pre.setString(2, "ER");
+		ResultSet rs = pre.executeQuery();
+		if (rs.next()) {
+			filePath = rs.getString("download_to_dir_local") + rs.getString("filename");
+			table_name_staging = rs.getString("table_name_staging");
+			list_field_name = rs.getString("list_field_name");
+			System.out.println("Source file: " + filePath);
 			delimited = rs.getString("delimiter");
 			System.out.println(delimited);
-			status = rs.getString("status_file");
-			System.out.println("status là " + status);
-			idFile = rs.getInt("id");
+			idFile = rs.getInt("l.id");
 
-			// nếu status_file là ER thì mới chuyển qua staging
-			if (!status.equalsIgnoreCase("ER"))
-				continue;
-			// nếu file không tồn tại thì chuyển status_file là FILE_NOT_FOUND
-			File f = new File(src);
-			if (!f.exists()) {
+			File file = new File(filePath);
+			if (!file.exists()) {
 				System.out.println("File not exist!");
 				// update status file
 				updateStatus("FILE_NOT_FOUND", idFile);
-				continue;
-			}
-			System.out.println("FileName: " + src
-					+ " -------------------------------------------------------------------------------------------------------------------------");
-			// dựa vào đuôi của file mà chuyển vô staging khác nhau
-			if (src.endsWith("xlsx")) {
-				try {
-					loadFromXSXL(src, file_format_start_with,tableName, idFile);
-				} catch (Exception e) {
-					e.printStackTrace();
-					continue;
-				}
-			} else if (src.endsWith("csv") || src.endsWith("txt")) {
-				try {
-					loadFromCSVOrTXT(src, delimited, file_format_start_with,tableName, idFile);
-				} catch (Exception e) {
-					e.printStackTrace();
-					continue;
-				}
+
 			} else {
-				System.out.println("no method");
+
+				// dựa vào đuôi của file mà chuyển vô staging khác nhau
+				if (filePath.endsWith("xlsx")) {
+					try {
+						 loadFileXSXL(file,  table_name_staging,  list_field_name, idFile);
+					} catch (Exception e) {
+						e.printStackTrace();
+
+					}
+				} else if (filePath.endsWith("csv") || filePath.endsWith("txt")) {
+					try {
+						loadFile(file,table_name_staging,  list_field_name,  delimited,  idFile);
+					} catch (Exception e) {
+						e.printStackTrace();
+
+					}
+				} else {
+					System.out.println("no method");
+				}
 			}
+		} else {
+			System.out.println("Không có bản ghi nào");
+			return;
+		}
 
 //			Handle.convertDataFromStagingToWasehouse(String.valueOf(idFile));
 
-			// sau khi đưa dữ liệu vào warehouse thì truncate bảng staging
+		// sau khi đưa dữ liệu vào warehouse thì truncate bảng staging
 //			truncateTable("STAGING", file_format_start_with);
-		}
 
+	}
+//phương thức tạo bảng nếu bảng chưa tồn tại
+	public  void  createTable(String tableName,String list_field_name) throws SQLException {
+		Connection connectDB = DBConnection.getConnection("STAGING");
+		Statement st = connectDB.createStatement();
+		StringTokenizer token = new StringTokenizer(list_field_name, "|");
+		String sql="CREATE TABLE IF NOT EXISTS "+tableName+"(";
+		int numberOfField=token.countTokens();
+		for (int i = 0; i < numberOfField; i++) {
+			
+			sql+=token.nextToken()+" VARCHAR(250),";
+		}
+		sql=sql.substring(0, sql.length()-1);
+		sql+=")";
+		st.executeUpdate(sql);
 	}
 
 	// phương thức dùng để update status của một dòng trong bảng logs bằng một
@@ -128,7 +130,7 @@ public class TranfertoStaging {
 		pre.setString(1, status);
 		pre.setInt(2, id);
 		pre.executeUpdate();
-		System.out.println("Update ok");
+		System.out.println("Update status ok");
 		pre.close();
 
 	}
@@ -140,6 +142,10 @@ public class TranfertoStaging {
 		String sql = "Update logs set size=?,total_row=?,staging_load_row=?,time_staging=?,status_file=? where id=?";
 		Connection con = DBConnection.getConnection("CONTROLDB");
 		PreparedStatement pre = con.prepareStatement(sql);
+		System.out.println(id);
+		System.out.println(size);
+		System.out.println(total_row);
+		System.out.println(staging_load_row);
 		pre.setInt(1, size);
 		pre.setInt(2, total_row);
 		pre.setInt(3, staging_load_row);
@@ -147,7 +153,7 @@ public class TranfertoStaging {
 		pre.setString(5, "OK STAGING");
 		pre.setInt(6, id);
 		pre.executeUpdate();
-		System.out.println("Update ok");
+		System.out.println("Update file ok");
 		pre.close();
 
 	}
@@ -163,31 +169,36 @@ public class TranfertoStaging {
 
 	}
 
-	public String loadFile(File f, String tableName, String delimited, int numberOfField)
-			throws SQLException, IOException {
+	public void loadFile(File file, String tableName, String list_field_name, String delimited, int id)
+			throws SQLException, IOException, ClassNotFoundException {
+	//tạo kết nối tới staging database
 		Connection connect = DBConnection.getConnection("STAGING");
-		BufferedReader lineReader = new BufferedReader(new FileReader(f));
+		//tạo bảng chứa dữ liệu nếu bảng không tồn tại
+		createTable(tableName, list_field_name);
+		BufferedReader lineReader = new BufferedReader(new FileReader(file));
 		String lineText = "";
+		//đọc bỏ dòng đầu tiên vì dòng đầu là tên các field
 		lineText = lineReader.readLine();
-		int total_row = 0, staging_load_row = 0, numberField = numberOfField;
+		int total_row = 0, staging_load_row = 0, numberOfField = new StringTokenizer(list_field_name, "|").countTokens();
+		//tạo câu sql để insert vào bảng tương ứng, bảng có x field thì có x dấu ?
 		String sql = "Insert into " + tableName + " values (";
-		while (numberField > 0) {
-			if (numberField != 1) {
+		while (numberOfField > 0) {
+			if (numberOfField != 1) {
 				sql += "?,";
 			} else
 				sql += "?";
-			numberField--;
+			numberOfField--;
 		}
 		sql += ")";
 		PreparedStatement pre = connect.prepareStatement(sql);
-
+		numberOfField = new StringTokenizer(list_field_name, "|").countTokens();
 		// xử lý các dòng còn lại trong file
 		while ((lineText = lineReader.readLine()) != null) {
-			total_row++;
 			System.out.println("lineText: " + lineText);
-			// tách dòng theo delimit
+			// tách dòng theo delimited
 			StringTokenizer st = new StringTokenizer(lineText, delimited);
 			System.out.println("Count token: " + st.countTokens());
+			//biến i dùng để pre.setString thứ i
 			int i = 0;
 			// dòng không đủ field thì không đưa vô staging, đọc dòng tiếp theo, đủ field
 			// thì đưa vô staging
@@ -200,65 +211,46 @@ public class TranfertoStaging {
 				pre.execute();
 				staging_load_row++;
 			}
+			total_row++;
 		}
 		lineReader.close();
-		return total_row + "-" + staging_load_row;
+		updateFile(id, (int) file.length(), total_row, staging_load_row);
+		
+		
 	}
 
-// phương thức dùng để tải nội dung trong file csv hoặc txt vào bảng staging
-	private void loadFromCSVOrTXT(String source_file, String delimited,String file_format_start_with, String tableName, int id)
-			throws SQLException, ClassNotFoundException, IOException {
-		System.out.println("TẢI FILE TXT");
-		// staging_load_row là số dòng đưa vô staging, total_row là tổng số dòng của
-		// file
-		int staging_load_row = 0, total_row = 0;
-		System.out.println("Connect DB Successfully");
-		File f = new File(source_file);
-		StringTokenizer token = null;
 
-		if (file_format_start_with.equalsIgnoreCase("sinhvien")) {
-			token = new StringTokenizer(loadFile(f, tableName, delimited, 11), "-");
 
-		} else if (file_format_start_with.equalsIgnoreCase("lophoc")) {
-			token = new StringTokenizer(loadFile(f, tableName, delimited, 4), "-");
-
-		} else if (file_format_start_with.equalsIgnoreCase("dangky")) {
-			token = new StringTokenizer(loadFile(f, tableName, delimited, 5), "-");
-
-		} else if (file_format_start_with.equalsIgnoreCase("Monhoc")) {
-			token = new StringTokenizer(loadFile(f, tableName, delimited, 7), "-");
-
-		}
-		total_row = Integer.parseInt(token.nextToken());
-		staging_load_row = Integer.parseInt(token.nextToken());
-		// đọc xong 1 file, update lại trong logs table
-		updateFile(id, (int) f.length(), total_row, staging_load_row);
-
-	}
-
-	public int loadFileXSXL(File f, String tableName, int numberOfField)
-			throws SQLException, InvalidFormatException, IOException {
-		int numberField = numberOfField;
+	public void loadFileXSXL(File file, String tableName, String list_field_name, int id)
+			throws SQLException, InvalidFormatException, IOException, ClassNotFoundException {
+		//String filePath, String file_format_start_with, String tableName, int id
+		int total_row=0;
+		//đếm số field của bảng
+		// nếu bảng chưa tồn tại thì tạo bảng
+		createTable(tableName, list_field_name);
+		//đếm tổng số trường của file này
+		int numberOfField = new StringTokenizer(list_field_name, "|").countTokens();
 		Connection connect = DBConnection.getConnection("STAGING");
 		System.out.println("Connect DB Successfully");
-		Workbook excel = new XSSFWorkbook(f);
+		Workbook excel = new XSSFWorkbook(file);
 		sheet = excel.getSheetAt(0);
 
 		String sql = "Insert into " + tableName + " values (";
-		while (numberField > 0) {
-			if (numberField != 1) {
+		while (numberOfField > 0) {
+			if (numberOfField != 1) {
 				sql += "?,";
 			} else
 				sql += "?";
-			numberField--;
+			numberOfField--;
 		}
 		sql += ")";
-
+System.out.println("Insert sql: "+ sql);
 		PreparedStatement pre = connect.prepareStatement(sql);
 
 		// get data from file and insert to table
 //bỏ hàng 0 đọc từ hàng 1
 		int i = 1;
+		numberOfField = new StringTokenizer(list_field_name, "|").countTokens();
 		while ((row = sheet.getRow(i)) != null) {
 			// đọc numberOfField cột trên dòng
 			for (int j = 0; j < numberOfField; j++) {
@@ -280,30 +272,11 @@ public class TranfertoStaging {
 			i++;
 
 		}
-
-		return i - 1;
+		updateFile(id, (int) file.length(), i-1, i-1);
+		
 	}
 
-	private void loadFromXSXL(String excelFile,String file_format_start_with, String tableName, int id)
-			throws ClassNotFoundException, SQLException, IOException, InvalidFormatException {
-		int total_row = 0;
-		System.out.println("TẢI FILE XSXL");
-// Mở file
-		File f = new File(excelFile);
-		if (file_format_start_with.equalsIgnoreCase("sinhvien")) {
-			total_row = loadFileXSXL(f,tableName, 11);
-		} else if (file_format_start_with.equalsIgnoreCase("lophoc")) {
-			total_row = loadFileXSXL(f, tableName, 4);
-		} else if (file_format_start_with.equalsIgnoreCase("dangky")) {
-			total_row = loadFileXSXL(f, tableName, 5);
-		} else if (file_format_start_with.equalsIgnoreCase("Monhoc")) {
-			total_row = loadFileXSXL(f, tableName, 7);
-		}
 
-		// đọc xong 1 file, cập nhật lại các field của trong logs
-		updateFile(id, (int) f.length(), total_row, total_row);
-
-	}
 
 	// import data from csv or txt using load data infile
 	private void loadFromCSVOrTXT1(String source_file, String delimited, String tableName)
@@ -318,10 +291,10 @@ public class TranfertoStaging {
 		System.out.println("Load success");
 	}
 
-	public static void main(String[] args) throws SQLException {
+	public static void main(String[] args) throws SQLException, ClassNotFoundException {
 		try {
 
-			new TranfertoStaging().loadFromSourceFile(4);
+			new TranfertoStaging().loadFromSourceFile(3);
 
 		} catch (ClassNotFoundException e) {
 			// TODO Auto-generated catch block
@@ -333,6 +306,7 @@ public class TranfertoStaging {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
+
 
 	}
 
