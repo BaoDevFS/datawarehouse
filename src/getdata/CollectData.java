@@ -56,29 +56,23 @@ public class CollectData {
 		sendMail = new SendMail();
 	}
 
-	public void startTask(int idRowConfig) {
-		timer = new Timer();
-		TimerTask timerTask = new TimerTask() {
-			@Override
-			public void run() {
-				try {
-					getConfig(idRowConfig);
-				} catch (ClassNotFoundException | SQLException | IOException e) {
-					e.printStackTrace();
-				}
-			}
-		};
-		timer.schedule(timerTask, 0, 1 * 60 * 1000);
-	}
-
-	public void getConfig(int i) throws ClassNotFoundException, SQLException, IOException {
+	public void getConfig(int id) throws ClassNotFoundException, IOException, SQLException {
+		// kết nối db control
 		Connection connection = DBConnection.getConnection("CONTROLDB");
-		String sql = "Select * from config where id =" + i;
+		// kiểm tra lỗi thì thông báo mail
+		if (connection == null) {
+			sendMail.sendEmail("Khong ket noi được CONTROLDB", "guyennhubao999@gmail.com",
+					"CONNECT TO CONTROLDB ERROR");
+			return;
+		}
+		// query lấy row Config theo id
+		String sql = "Select * from config where id =" + id;
 		PreparedStatement pre = connection.prepareStatement(sql);
 		ResultSet rs = pre.executeQuery();
+		// duyêt ResultSet lấy các thông số
 		if (rs.next()) {
 			System.out.println("Start tanks");
-			id = rs.getInt("id");
+			this.id = id;
 			System.out.println("id: " + id);
 			String host = rs.getString("ip_address");
 			System.out.println("host: " + host);
@@ -135,7 +129,7 @@ public class CollectData {
 		}
 
 	}
-
+	// chèn 1 dòng log mới vào table logs
 	public void insertNewLog(Connection connection, int id_config, int id_group, String filename, String source_folder,
 			String filetype_downdload, String status, String md5) {
 		String sql = "Insert into logs (logs.id_config,logs.group_id,logs.status_file,logs.filename,logs.source_folder,logs.filetype_download,logs.time_download,logs.MD5) values(?,?,?,?,?,?,?,?)";
@@ -173,7 +167,7 @@ public class CollectData {
 		}
 
 	}
-
+	// tách groupID từ file name
 	private int getGroupID(String name) {
 		String id;
 		try {
@@ -194,6 +188,7 @@ public class CollectData {
 	// kiểm tra file đã tồn tại hay chưa,
 	// chưa thì trả về -1, tồn tại thì trả về id
 	public ResultSet checkFileIsExitDB(Connection connection, int groupID, String fileName) throws SQLException {
+		// query lấy dòng log trong table logs 
 		PreparedStatement pre = connection.prepareStatement("Select * from logs where group_id=? and filename=?");
 		pre.setInt(1, groupID);
 		pre.setString(2, fileName);
@@ -234,14 +229,10 @@ public class CollectData {
 			// return complete hash
 			return sb.toString();
 		} catch (NoSuchAlgorithmException e) {
-			sendMail.sendEmail(e.toString(), "nguyennhubao999@gmail.com",
-					"NoSuchAlgorithmException in getMD5FileLocal");
 			return "";
 		} catch (FileNotFoundException e) {
-			sendMail.sendEmail(e.toString(), "nguyennhubao999@gmail.com", "FileNotFoundException in getMD5FileLocal");
 			return "";
 		} catch (IOException e) {
-			sendMail.sendEmail(e.toString(), "nguyennhubao999@gmail.com", "IOException in getMD5FileLocal");
 			return "";
 		}
 	}
@@ -265,24 +256,26 @@ public class CollectData {
 	}
 
 	private String getMd5FromLog(Connection connection, int id) {
+		// query lấy trường md5 trong dòng log có id 
 		String sql = "Select MD5 from logs where id=" + id;
 		try {
 			PreparedStatement preparedStatement = connection.prepareStatement(sql);
 			ResultSet rs = preparedStatement.executeQuery();
+			// nếu có thì trả về string md5
 			if (rs.next()) {
 				return rs.getString(1);
+				// không thì trả về chuỗi rỗng
 			} else {
 				return "";
 			}
 		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			sendMail.sendEmail(e.toString(), "nguyennhubao999@gmail.com", "LỖI KHÔNG LẤY ĐƯỢC MD5");
 			return "";
 		}
 	}
 
 	private void processFileExitsInSystem(Connection connection, String host, String fileName, String pathFile,
 			String statusFile, int id) {
+		// kiểm tra trạng thái file có giống vs các trạng thái lỗi hay k
 		if (statusFile.equals("Download Error") || statusFile.equals("Download Update")
 				|| statusFile.equals("FILE_NOT_FOUND")) {
 			if (downloadFile(host, fileName, pathFile, download_to_dir_local)) {
@@ -297,11 +290,11 @@ public class CollectData {
 				updateLogs(connection, id, "Download Error", "");
 
 			}
+			// kiểm tra md5 của file trên local với file trên server
 		} else {
 			// get md5 file in server
 			String md5Sourc = getMD5File(host, pathFile);
 			// get md5 file in local
-//			String md5Local = getMD5FileLocal(download_to_dir_local + fileName);
 			String md5Local = getMd5FromLog(connection, id);
 			// kiểm tra lỗi md5 của file in local và md5 file trên server
 			if (md5Local == "" || md5Sourc == null) {
@@ -313,14 +306,15 @@ public class CollectData {
 				System.out.println("File nothing change: " + fileName);
 			} else {
 				System.out.println("File is change: " + fileName);
-				// thay đổi trang thái file trong logs
+				// thay đổi trang thái file trong log thành  Download Update để down lại
 				updateLogs(connection, id, "Download Update", "");
 			}
 		}
 	}
 
+	// kiểm tra trạng thái file trong hệ thống
 	public void checkStatusFileInSystem(Connection connection, String host, String fromFolder,
-			String download_to_dir_local) {
+			String download_to_dir_local) throws SQLException {
 		String fileName, pathFile;
 		int groupId;
 		for (int i = 0; i < listFileName.size(); i++) {
@@ -333,20 +327,15 @@ public class CollectData {
 				continue;
 			}
 			// kiểm tra group id đã tồn tại hay chưa
-			try {
-				ResultSet rs = checkFileIsExitDB(connection, groupId, fileName);
-
-				if (!rs.next()) {
-					processFileNotExitsInSystem(connection, host, fileName, pathFile, groupId, fromFolder);
-				} else {
-					processFileExitsInSystem(connection, host, fileName, pathFile, rs.getString("status_file"),
-							rs.getInt("id"));
-				}
-				rs.close();
-			} catch (SQLException e) {
-				sendMail.sendEmail(e.toString(), "nguyennhubao999@gmail.com",
-						"Error In Funtion CheckStatusFileInSystem");
+			ResultSet rs = checkFileIsExitDB(connection, groupId, fileName);
+			// k tồn tại trong hệ thống
+			if (!rs.next()) {
+				processFileNotExitsInSystem(connection, host, fileName, pathFile, groupId, fromFolder);
+			} else {
+				processFileExitsInSystem(connection, host, fileName, pathFile, rs.getString("status_file"),
+						rs.getInt("id"));
 			}
+			rs.close();
 		}
 	}
 
@@ -355,6 +344,7 @@ public class CollectData {
 		listPathFile = new ArrayList<String>();
 		listFileName = new ArrayList<String>();
 		System.out.println(fromFolder);
+		// những parameter mà header phải có để lấy đc list file
 		HashMap<String, String> map = new HashMap<String, String>();
 		map.put("api", "SYNO.FileStation.List");
 		map.put("version", "1");
@@ -363,31 +353,36 @@ public class CollectData {
 		map.put("_sid", sid);
 		// get json list file
 		String json = getJsonFromUrl(host + urlListFile, map);
-		//
+		// dùng thư viện để bóc tách json trả về
 		Object obj = JSONValue.parse(json);
 		JSONObject jsonObject = (JSONObject) obj;
 		jsonObject = (JSONObject) jsonObject.get("data");
 		JSONArray jsonArray = (JSONArray) jsonObject.get("files");
 		String fileName, path;
+		// duyệt for để lấy từng dòng filename và path
 		for (int i = 0; i < jsonArray.size(); i++) {
 			fileName = "";
 			path = "";
 			jsonObject = (JSONObject) jsonArray.get(i);
 			fileName = (String) jsonObject.get("name");
 			path = (String) jsonObject.get("path");
+			// nếu filename k bắt đầu bằng chuỗi start_with đã cho thì bỏ qua
 			if (!fileName.startsWith(file_format_start_with)) {
 				continue;
 			}
+			// kiểm tra dịnh đạng file
+			// không đúng thì bỏ qua
 			if (!checkFileType(fileName)) {
 				continue;
 			}
+			// add fileName và pathFile và arraylist
 			listFileName.add(fileName);
 			listPathFile.add(path);
 		}
 		return true;
 
 	}
-
+	// xóa log với id truyền vào
 	public void removelog(Connection connection, int id) {
 		String sql = "Delete from logs where id=" + id;
 		PreparedStatement preparedStatement;
@@ -572,7 +567,7 @@ public class CollectData {
 
 	public static void main(String[] args) throws ClassNotFoundException, SQLException, IOException {
 		CollectData collectData = new CollectData();
-		collectData.startTask(3);
+//		collectData.startTask(3);
 
 //		collectData.login("http://drive.ecepvn.org:5000/", "guest_access", "123456");
 //		collectData.getMD5File("http://drive.ecepvn.org:5000/", "/ECEP/song.nguyen/DW_2020/data/sinhvien_chieu_nhom16.xlsx");

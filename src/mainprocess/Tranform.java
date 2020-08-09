@@ -1,10 +1,13 @@
 package mainprocess;
 
+import java.io.IOException;
+import java.sql.SQLException;
+
 import part2.TranfertoStaging;
 
 public class Tranform {
-	public static void main(String[] args) {
+	public static void main(String[] args) throws NumberFormatException, ClassNotFoundException, SQLException, IOException {
 		TranfertoStaging tranfertoStaging = new TranfertoStaging();
-		tranfertoStaging.startTask(Integer.parseInt(args[0]));
+		tranfertoStaging.loadFromSourceFile(Integer.parseInt(args[0]));
 	}
 }
