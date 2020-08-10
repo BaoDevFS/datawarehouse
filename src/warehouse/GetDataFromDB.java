@@ -22,6 +22,7 @@ public class GetDataFromDB {
 		connectionStaging =DBConnection.getConnection("STAGING");
 		connectionWarehouse = DBConnection.getConnection("WAREHOUSE");
 	}
+	//xac dinh connect vs database
 	public void doSpecialTaskInLog(int idLog) {
 //		Connection connectionControl = DBConnection.getConnection("CONTROLDB");
 		try {
@@ -99,6 +100,7 @@ public class GetDataFromDB {
 		}
 		return token;
 	}
+	//true thi tao thanh cong
 	public boolean createTableWarehouse(String tableName, String list_field, int number_colum,
 			String list_colum_datatype) {
 		try {
@@ -266,7 +268,7 @@ public class GetDataFromDB {
 			e.printStackTrace();
 		}
 	}
-
+	// da ton tai = true
 	public boolean checkTableExits(String tableName) {
 		String sql = "SELECT COUNT(*) FROM information_schema.`TABLES` WHERE TABLE_NAME=?";
 		Connection con = DBConnection.getConnection("WAREHOUSE");

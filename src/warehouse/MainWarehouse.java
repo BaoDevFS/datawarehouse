@@ -20,6 +20,7 @@ public class MainWarehouse {
 		get = new GetDataFromDB();
 	}
 
+	//du lieu khac nhau 2 field => khong trung.
 	public boolean checkDuplicate(ResultSet rsData, ResultSet rsWareHouse) {
 		try {
 
@@ -70,43 +71,44 @@ public class MainWarehouse {
 				}
 			}
 			get.doSpecialTaskInLog(idLog);
-			// get data từ satginglen
 			rsdata = get.getDataStagingFromDb(tableNameInStagingDb);
 			// duyệt từng dòng
 			while (rsdata.next()) {
-				// kiểm tra số lượng cột trong hàng
+				// kiem tra du lieu co bi rong hay khong, 4 col rong => rong(false)
 				if (!check_Colum_In_Row(rsdata))
 					continue;
-				// không đủ thì bỏ qua
-				// get dữ liệu từ bảng warehouse
+				// get du lieu tu warehouse dua vao id staging(ten cua table nay nam trong config)
 				ResultSet rsWarehouse = get.getDataFromWarehouse(tableNameInWarehouseDb, field_define_transform, "=",
 						rsdata.getString(field_define_transform));
-				// nếu có dữ liệu
+				// keim tra su ton tai cua du lieu
 				if (rsWarehouse.next()) {
+					//kiem tra trung lap du lieu
+					//neu trung lap thi bo qua
 					if (checkDuplicate(rsdata, rsWarehouse)) {
 						continue;
+					// khac nhau 3 field => khong trung lap(false)
 					} else {
-//						// cap expired la ngay hien tai 
+//						// cap expired lai ngay hien tai 
 						get.intsertDataToWarehouse(tableNameInWarehouseDb, listField, number_colum, rsdata,
 								list_colum_datatype, countRow);
 						// reopen PreparedStatement neu nno bi dong
 						get.updateExpiredInWareHouse(tableNameInWarehouseDb, rsWarehouse.getInt(1), "now()");
 					}
+					// nguoi lai thi tao moi du lieu cho no
 				} else {
-					// insert duw lieu vao warehouse
+					// insert du lieu vao warehouse
 					get.intsertDataToWarehouse(tableNameInWarehouseDb, listField, number_colum, rsdata,
 							list_colum_datatype, countRow);
+					
 				}
+				//cap nhat so du lieu them,sua doi trong warehouse
+				//countRow++;
 			}
 			get.updateStatus("OK WH", idLog, countRow);
 		} catch (SQLException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 		}
-
-	}
-
-	private void insertRowToWarehouse(PreparedStatement pre, ResultSet rsdata) {
 
 	}
 
@@ -160,6 +162,7 @@ public class MainWarehouse {
 		}
 	}
 
+	//kiem tra du lieu co ton tai hay khong, neu du lieu rong >= 4 thi false
 	private boolean check_Colum_In_Row(ResultSet rs) {
 		try {
 			String tmp;
