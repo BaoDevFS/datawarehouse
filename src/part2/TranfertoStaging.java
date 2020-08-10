@@ -23,15 +23,18 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 import dao.Handle;
 import db.DBConnection;
+import warehouse.MainWarehouse;
 
 public class TranfertoStaging {
 	StringBuffer stb;
 	Row row;
 	Cell cell;
 	Sheet sheet;
-	
+	MainWarehouse  mainWarehouse;
 	private Timer timer;
-
+	public TranfertoStaging() {
+		mainWarehouse = new MainWarehouse();
+	}
 	public void startTask(int idRowConfig) {
 		timer = new Timer();
 		TimerTask timerTask = new TimerTask() {
@@ -53,7 +56,7 @@ public class TranfertoStaging {
 		// Mở kết nối với controldb
 		Connection connectDB = DBConnection.getConnection("CONTROLDB");
 		// chọn ra tất cả các bản ghi có id_config truyền vào và status là ER
-		sql = "SELECT * FROM config c JOIN logs l on c.id = l.id_config where c.id=? AND l.status_file=?";
+		sql = "SELECT * FROM config c JOIN logs l on c.id = l.id_config where c.id=? AND l.status_file=? ORDER BY l.id ASC";
 		PreparedStatement pre = connectDB.prepareStatement(sql);
 		pre.setInt(1, idConfig);
 		pre.setString(2, "ER");
@@ -79,6 +82,9 @@ public class TranfertoStaging {
 				if (filePath.endsWith("xlsx")) {
 					try {
 						 loadFileXSXL(file,  table_name_staging,  list_field_name, idFile);
+						 mainWarehouse.tranferStagingToWarehouse(idFile, idConfig);
+							// sau khi đưa dữ liệu vào warehouse thì truncate bảng staging
+							truncateTable("STAGING", table_name_staging);
 					} catch (Exception e) {
 						e.printStackTrace();
 
@@ -86,6 +92,9 @@ public class TranfertoStaging {
 				} else if (filePath.endsWith("csv") || filePath.endsWith("txt")) {
 					try {
 						loadFile(file,table_name_staging,  list_field_name,  delimited,  idFile);
+						mainWarehouse.tranferStagingToWarehouse(idFile, idConfig);
+						// sau khi đưa dữ liệu vào warehouse thì truncate bảng staging
+						truncateTable("STAGING", table_name_staging);
 					} catch (Exception e) {
 						e.printStackTrace();
 
@@ -98,11 +107,6 @@ public class TranfertoStaging {
 			System.out.println("Không có bản ghi nào");
 			return;
 		}
-
-//			Handle.convertDataFromStagingToWasehouse(String.valueOf(idFile));
-
-		// sau khi đưa dữ liệu vào warehouse thì truncate bảng staging
-//			truncateTable("STAGING", file_format_start_with);
 
 	}
 //phương thức tạo bảng nếu bảng chưa tồn tại
