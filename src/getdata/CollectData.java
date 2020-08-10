@@ -94,7 +94,7 @@ public class CollectData {
 				checkStatusFileInSystem(connection, host, from_folder, download_to_dir_local);
 			} else {
 				System.out.println("Login Fail");
-				sendMail.sendEmail("Login fail", "Nguyennhubao999@gmail.com", "Login Fail");
+				sendMail.sendEmail("Login fail to server", "Nguyennhubao999@gmail.com", "Login Fail");
 			}
 			rs.close();
 			connection.close();
