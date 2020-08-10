@@ -399,8 +399,9 @@ public class CollectData {
 	public String getJsonFromUrl(String url, HashMap<String, String> param) {
 		HttpURLConnection httpClient;
 		try {
+			// mở kêt nối tới url
 			httpClient = (HttpURLConnection) new URL(url).openConnection();
-
+			// thêm các option
 			httpClient.setRequestMethod("GET");
 			httpClient.setDoInput(true);
 			httpClient.setDoOutput(true);
@@ -411,6 +412,7 @@ public class CollectData {
 			writer.flush();
 			writer.close();
 			os.close();
+			// lưu lại các json trả về vào tringbuffer
 			BufferedReader in = new BufferedReader(new InputStreamReader(httpClient.getInputStream()));
 			StringBuilder response = new StringBuilder();
 			String line;
@@ -426,38 +428,47 @@ public class CollectData {
 	}
 
 	private String getMD5File(String host, String file_path) {
+		//
 		String taskid = getChecksum_TaskID(host, file_path);
+		// header cần phải có để lấy dc md5
 		HashMap<String, String> map = new HashMap<String, String>();
 		map.put("api", "SYNO.FileStation.MD5");
 		map.put("version", "1");
 		map.put("method", "status");
 		map.put("taskid", taskid);
 		map.put("_sid", sid);
+		// lấy json trả về
 		String json = getJsonFromUrl(host + urlListFile, map);
+		// bóc tách json
 		Object obj = JSONValue.parse(json);
 		JSONObject jsonObject = (JSONObject) obj;
 		jsonObject = (JSONObject) jsonObject.get("data");
+		// trả về md5
 		return (String) jsonObject.get("md5");
 
 	}
 
 	private String getChecksum_TaskID(String host, String file_path) {
+		//header cần phải có để lấy tackid ở server
 		HashMap<String, String> map = new HashMap<String, String>();
 		map.put("api", "SYNO.FileStation.MD5");
 		map.put("version", "1");
 		map.put("method", "start");
 		map.put("file_path", file_path);
 		map.put("_sid", sid);
+		// bóc tách json đểlaays
 		String json = getJsonFromUrl(host + urlListFile, map);
 		Object obj = JSONValue.parse(json);
 		JSONObject jsonObject = (JSONObject) obj;
 		jsonObject = (JSONObject) jsonObject.get("data");
+		// thêm kí tự đặc biệt cho task id để gửi lên server tiếp theo
 		return "\"" + (String) jsonObject.get("taskid") + "\"";
 	}
-
+	// chuyển hashmap sang string dể gửi lên server
 	private String getPostDataString(HashMap<String, String> params) throws UnsupportedEncodingException {
 		StringBuilder result = new StringBuilder();
 		boolean first = true;
+		// duyệt từng phần tử trong hashmap
 		for (Map.Entry<String, String> entry : params.entrySet()) {
 			if (first)
 				first = false;
@@ -471,7 +482,7 @@ public class CollectData {
 
 		return result.toString();
 	}
-
+	// kiểm tra định dạng file
 	private boolean checkFileType(String fileName) {
 		if (!fileName.endsWith(".xlsx")) {
 			if (!fileName.endsWith(".csv")) {
@@ -486,8 +497,9 @@ public class CollectData {
 	public boolean downloadFile(String host, String fileName, String path, String folder_tmp) {
 		HttpURLConnection httpClient;
 		try {
+			// mở kết nối tới server theo url
 			httpClient = (HttpURLConnection) new URL(host + urlListFile).openConnection();
-
+			// header của kết nối cần phải có
 			HashMap<String, String> map = new HashMap<String, String>();
 			map.put("api", "SYNO.FileStation.Download");
 			map.put("version", "1");
@@ -495,7 +507,9 @@ public class CollectData {
 			map.put("path", path);
 			map.put("_sid", sid);
 			map.put("mode", "open");
+			// set phương thức của nó là get
 			httpClient.setRequestMethod("GET");
+			// cho phép thêm dữ liệu vào và lấy dữ liệu ra
 			httpClient.setDoInput(true);
 			httpClient.setDoOutput(true);
 			// add request header
@@ -505,17 +519,21 @@ public class CollectData {
 			writer.flush();
 			writer.close();
 			os.close();
+			// mở kết nối file để lưu file
 			BufferedOutputStream bos = new BufferedOutputStream(new FileOutputStream(folder_tmp + fileName));
 			BufferedInputStream bis = new BufferedInputStream(httpClient.getInputStream());
 			byte[] arr = new byte[2048];
 			int index;
+			// đọc mảng byte từ response và write vào file
 			while ((index = bis.read(arr)) != -1) {
 				bos.write(arr, 0, index);
 				bos.flush();
 			}
+			// dóng kết nỗi
 			bos.close();
 			bis.close();
 			return true;
+			// nếu lỗi gửi email
 		} catch (IOException e) {
 			System.out.println("Error download file" + fileName);
 			sendMail.sendEmail("Download error file:" + fileName + "\n" + e.toString(), "nguyennhubao999@gmail.com",
