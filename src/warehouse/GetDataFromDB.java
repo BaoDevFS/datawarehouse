@@ -254,7 +254,7 @@ public class GetDataFromDB {
 			}
 		} catch (SQLException e) {
 			e.printStackTrace();
-			send.sendEmail(e.toString(), "nguyennhubao999@gmail.com", "Lỗi kết nối STAGING");
+			send.sendEmail(e.toString(), "nguyennhubao999@gmail.com", "Lỗi kết nối WAREHOUSE");
 		}
 	}
 

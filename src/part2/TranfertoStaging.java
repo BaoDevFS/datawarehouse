@@ -317,7 +317,7 @@ public class TranfertoStaging {
 	public static void main(String[] args) throws SQLException, ClassNotFoundException {
 		try {
 
-			new TranfertoStaging().loadFromSourceFile(3);
+			new TranfertoStaging().loadFromSourceFile(1);
 
 		} catch (ClassNotFoundException e) {
 			// TODO Auto-generated catch block

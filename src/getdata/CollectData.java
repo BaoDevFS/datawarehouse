@@ -61,7 +61,7 @@ public class CollectData {
 		Connection connection = DBConnection.getConnection("CONTROLDB");
 		// kiểm tra lỗi thì thông báo mail
 		if (connection == null) {
-			sendMail.sendEmail("Khong ket noi được CONTROLDB", "guyennhubao999@gmail.com",
+			sendMail.sendEmail("Khong ket noi được CONTROLDB", "nguyennhubao999@gmail.com",
 					"CONNECT TO CONTROLDB ERROR");
 			return;
 		}
